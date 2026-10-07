@@ -215,7 +215,7 @@ async function listing(id) {
 
   const { data: x } = await supabase
     .from('listings')
-    .select('*, listing_images(image_url), profiles(full_name)')
+    .select('*, listing_images(image_url)')
     .eq('id', id)
     .single();
 
