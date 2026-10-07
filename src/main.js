@@ -665,7 +665,7 @@ async function home() {
     <section class="marketSection premiumSection">
       <div class="sectionHead">
         <div><small class="sectionLabel premiumLabel">PAZARELDEN PREMIUM</small><h2>💎 Öne Çıkan Premium İlanlar</h2></div>
-        <a href="#/categories">Tümünü Gör →</a>
+        <a href="#/search?q=">Tümünü Gör →</a>
       </div>
       <div class="grid premiumGrid">
         ${premiumListings.length ? premiumListings.map(card).join('') :
@@ -676,7 +676,7 @@ async function home() {
     <section class="marketSection">
       <div class="sectionHead">
         <div><small class="sectionLabel">YENİ İLANLAR</small><h2>Son Eklenen İlanlar</h2></div>
-        <a href="#/categories">Tümünü Gör →</a>
+        <a href="#/search?q=">Tümünü Gör →</a>
       </div>
       <div class="grid">
         ${normalListings.length ? normalListings.map(card).join('') :
