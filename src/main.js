@@ -295,13 +295,8 @@ function shell(content) {
       </div>
     `
     : `
-      <a href="#/login">
-        Giriş Yap
-      </a>
-
-      <a href="#/signup">
-        Üye Ol
-      </a>
+      <a class="loginLink" href="#/login">Giriş Yap</a>
+      <a class="signupQuick" href="#/signup">👤 Üye Ol</a>
     `;
 
   return `
@@ -613,6 +608,7 @@ async function home() {
             placeholder="Ürün, marka veya kategori ara..."
             onkeydown="if(event.key==='Enter'){location.hash='#/search?q='+encodeURIComponent(this.value)}">
           <button onclick="location.hash='#/search?q='+encodeURIComponent(document.querySelector('#heroQ').value)">Ara</button>
+          ${!currentUser ? '<a class="heroSignupBtn" href="#/signup">👤 Hemen Üye Ol</a>' : ''}
         </div>
 
         <div class="quickSearch">
@@ -2976,13 +2972,8 @@ function auth(kind) {
 
     <div class="auth panel">
 
-      <h1>
-        ${
-          login
-            ? 'Giriş Yap'
-            : 'Üye Ol'
-        }
-      </h1>
+      <h1>${login ? 'Giriş Yap' : 'PazarElden’e Üye Ol'}</h1>
+      ${!login ? '<p class="signupIntro">Ücretsiz hesabını oluştur, ilan ver ve favorilerini kolayca takip et.</p>' : ''}
 
 
       ${
@@ -3033,9 +3024,9 @@ function auth(kind) {
                 type="checkbox"
               >
 
-              Kişisel verilerimin ve site
-              kurallarının ilgili metinlerini
-              okuyup kabul ediyorum.
+              <a href="#/privacy">Gizlilik metnini</a> ve
+              <a href="#/rules">site kurallarını</a>
+              okudum, kabul ediyorum.
 
             </label>
           `
@@ -3052,7 +3043,7 @@ function auth(kind) {
         ${
           login
             ? 'Giriş Yap'
-            : 'Hesap Oluştur'
+            : 'Ücretsiz Hesap Oluştur'
         }
 
       </button>
