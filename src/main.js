@@ -3222,8 +3222,13 @@ window.doAuth =
     }
 
 
-    location.hash =
-      '#/';
+    const afterAuth = sessionStorage.getItem('afterAuth');
+    if (afterAuth) {
+      sessionStorage.removeItem('afterAuth');
+      location.hash = afterAuth;
+    } else {
+      location.hash = '#/';
+    }
 
   };
 
