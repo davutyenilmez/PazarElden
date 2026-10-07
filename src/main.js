@@ -3467,8 +3467,8 @@ async function render() {
 
     if (!currentUser) {
 
-      location.hash =
-        '#/login';
+      sessionStorage.setItem('afterAuth', '#/ilan-ver');
+      location.hash = '#/signup';
 
       return;
     }
@@ -3602,7 +3602,8 @@ async function render() {
 
 
   } else if (
-    path === '/signup'
+    path === '/signup' ||
+    path.startsWith('/signup?')
   ) {
 
     html =
