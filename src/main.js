@@ -571,6 +571,32 @@ async function home() {
     soldCount = sold?.count || 0;
   }
 
+  let monthMember = null;
+  if (supabase) {
+    const winnerResult = await safeTable('member_of_month', () =>
+      supabase
+        .from('member_of_month')
+        .select('user_id, month_key')
+        .eq('winner', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+    );
+
+    if (winnerResult?.data?.user_id) {
+      const profileResult = await safeTable('profiles', () =>
+        supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, city')
+          .eq('id', winnerResult.data.user_id)
+          .maybeSingle()
+      );
+      if (profileResult?.data) {
+        monthMember = { ...profileResult.data, month_key: winnerResult.data.month_key };
+      }
+    }
+  }
+
   const premiumListings = listings.filter(x => x.is_premium === true).slice(0, 5);
   const normalListings = listings.filter(x => x.is_premium !== true).slice(0, 10);
 
@@ -605,6 +631,19 @@ async function home() {
       <div><span class="statIcon">📣</span><strong>${activeCount.toLocaleString('tr-TR')}</strong><span>Aktif İlan</span></div>
       <div><span class="statIcon">✅</span><strong>${soldCount.toLocaleString('tr-TR')}</strong><span>Satılan İlan</span></div>
       <div><span class="statIcon onlineDot">●</span><strong class="systemActive">Aktif</strong><span>Sistem Durumu</span></div>
+    </section>
+
+    <section class="monthMemberSpot">
+      <div class="monthMemberTitle"><span>🏆</span><div><small>PAZARELDEN</small><b>Ayın Üyesi</b></div></div>
+      ${monthMember ? `
+        <a class="monthMemberPerson" href="#/seller/${monthMember.id}">
+          <div class="monthMemberAvatar">${monthMember.avatar_url ? '<img src="' + safe(monthMember.avatar_url) + '" alt="Ayın Üyesi">' : '👤'}</div>
+          <div><strong>${safe(monthMember.full_name || 'PazarElden Üyesi')}</strong><span>${safe(monthMember.city || 'PazarElden topluluğu')}</span></div>
+          <em>Profili Gör →</em>
+        </a>
+      ` : `
+        <div class="monthMemberEmpty"><span>⭐</span><div><strong>Bu ayın üyesi yakında burada</strong><small>Topluluğumuzun öne çıkan üyesi bu alanda gösterilecek.</small></div></div>
+      `}
     </section>
 
     <section class="categorySection">
