@@ -1957,3 +1957,17 @@ footer small {
 .memberTableHead{background:#f8fafc;color:#64748b;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
 .memberRow{border-top:1px solid #edf2f7;text-decoration:none;color:#475569;font-size:13px}.memberRow:hover{background:#f8fcfc}.memberRow b{color:#0b2b4f}
 @media(max-width:760px){.memberStats{grid-template-columns:1fr 1fr}.memberTableHead{display:none}.memberRow{grid-template-columns:1fr 1fr}.memberRow span:nth-child(3),.memberRow span:nth-child(4){font-size:11px}}
+
+/* EASY SIGNUP + MOBILE ONBOARDING */
+.signupQuick,.heroSignupBtn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;font-weight:800;border-radius:10px}
+.signupQuick{background:#009ead;color:#fff!important;padding:9px 14px}.signupQuick:hover{background:#00818e}
+.heroSignupBtn{background:#0b2b4f;color:#fff;padding:0 18px;min-height:50px;white-space:nowrap}.heroSignupBtn:hover{background:#071e38}
+.signupIntro{text-align:center;color:#64748b;margin:-4px 0 18px}.auth label a{color:#00818e;font-weight:700}.auth label{line-height:1.5}
+@media(max-width:760px){
+ header{flex-wrap:wrap;gap:10px}.brand{order:1}header nav{order:2;margin-left:auto}.topsearch{order:3;width:100%;max-width:none}
+ header nav>a:not(.signupQuick):not(.loginLink):not(.cta),header nav .accountArea{display:none}
+ header nav{gap:6px}.loginLink,.signupQuick,.cta{font-size:12px;padding:8px 10px}
+ .professionalSearch{display:grid!important;grid-template-columns:auto 1fr auto;gap:7px}
+ .professionalSearch .heroSignupBtn{grid-column:1/-1;width:100%;min-height:44px}
+ .auth.panel{margin:18px auto;padding:22px 18px;max-width:520px}.auth input{min-height:48px;font-size:16px}.auth button{width:100%;min-height:48px}
+}
