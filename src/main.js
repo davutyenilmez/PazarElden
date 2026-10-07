@@ -2679,6 +2679,43 @@ function rulesPage() {
 
 
 /* =========================================================
+   GIZLILIK
+   ========================================================= */
+
+function privacyPage() {
+  return shell(`
+    <section class="infoPage">
+      <h1>Gizlilik ve Kişisel Verilerin Korunması</h1>
+      <p>PazarElden, kullanıcı gizliliğini ve kişisel verilerin korunmasını önemser.</p>
+
+      <h2>Hangi bilgiler kullanılır?</h2>
+      <p>Üyelik ve platform kullanımı sırasında ad soyad, e-posta, telefon, profil bilgileri, ilan bilgileri ve platform işlem kayıtları işlenebilir.</p>
+
+      <h2>Telefon ve e-posta gizliliği</h2>
+      <p>Telefon numarası ve e-posta adresi herkese açık profilde gösterilmez. İletişim bilgilerinin ilan açıklamalarında veya herkese açık alanlarda paylaşılması sınırlandırılabilir.</p>
+
+      <h2>Herkese açık profil</h2>
+      <p>Profil adı, kullanıcının kendi isteğiyle eklediği Hakkımda açıklaması, şehir ve ilçe bilgisi, profil fotoğrafı, üyelik bilgisi ve aktif ilanlar diğer kullanıcılar tarafından görülebilir.</p>
+
+      <h2>Bilgilerin kullanım amaçları</h2>
+      <p>Bilgiler; üyelik işlemleri, ilan ve mesajlaşma özellikleri, güvenlik, kötüye kullanımın önlenmesi, moderasyon, kullanıcı desteği ve platformun geliştirilmesi amacıyla kullanılabilir.</p>
+
+      <h2>Güvenlik</h2>
+      <p>PazarElden, kullanıcı bilgilerinin yetkisiz erişim ve kötüye kullanıma karşı korunması için teknik ve idari güvenlik önlemleri uygular ve geliştirmeye devam eder.</p>
+
+      <h2>Kullanıcı hakları</h2>
+      <p>Kullanıcılar yürürlükteki mevzuat kapsamında kişisel verileriyle ilgili bilgi talep etme ve kendilerine tanınan diğer yasal hakları kullanma hakkına sahiptir.</p>
+
+      <h2>Güncellemeler</h2>
+      <p>Bu metin, platformdaki özellikler ve yasal gereklilikler doğrultusunda güncellenebilir.</p>
+
+      <p><small>Bu sayfa bilgilendirme amaçlı taslak metindir. Ticari kullanıma geçmeden önce KVKK ve ilgili mevzuat açısından hukuk uzmanı tarafından gözden geçirilmelidir.</small></p>
+    </section>
+  `);
+}
+
+
+/* =========================================================
    DESTEK
    ========================================================= */
 
@@ -3484,6 +3521,14 @@ async function render() {
 
     html =
       rulesPage();
+
+
+  } else if (
+    path === '/privacy'
+  ) {
+
+    html =
+      privacyPage();
 
 
   } else if (
