@@ -1869,3 +1869,47 @@ footer small {
   }
 
 }
+
+
+/* PAZARELDEN PROFESSIONAL HOME V2 */
+.professionalHero{min-height:460px;padding:72px 35px;background:radial-gradient(circle at 85% 10%,rgba(0,158,173,.18),transparent 30%),radial-gradient(circle at 12% 90%,rgba(11,43,79,.12),transparent 30%),linear-gradient(135deg,#f5fbfc 0%,#edf6fa 55%,#eef4f9 100%);border:1px solid #dce8ee}
+.heroInner{max-width:960px!important}
+.heroEyebrow{display:inline-flex;margin-bottom:18px;padding:7px 12px;border:1px solid rgba(0,158,173,.18);border-radius:999px;background:rgba(255,255,255,.7);color:var(--turquoise-dark);font-size:11px;font-weight:900;letter-spacing:1.2px}
+.professionalHero h1{max-width:900px;font-size:clamp(40px,4.6vw,62px);letter-spacing:-1.8px}
+.professionalHero h1 em{display:inline-block;margin-top:5px}
+.professionalHero p{font-size:17px;line-height:1.7}
+.professionalSearch{width:min(850px,100%);min-height:68px;margin-top:34px;padding:7px 7px 7px 18px;border-radius:16px}
+.professionalSearch .searchIcon{display:flex;align-items:center;color:#78909c;font-size:25px}
+.professionalSearch input{font-size:16px}
+.professionalSearch button{min-width:130px;border-radius:11px;font-size:14px}
+.quickSearch{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:8px;margin-top:18px}
+.quickSearch span{color:#64748b;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+.quickSearch a{padding:7px 11px;border:1px solid #dfe8ee;border-radius:999px;background:rgba(255,255,255,.78);color:#475569;font-size:11px;font-weight:700;transition:.18s}
+.quickSearch a:hover{transform:translateY(-2px);border-color:rgba(0,158,173,.4);color:var(--turquoise-dark);background:#fff}
+.professionalStats{width:88%;margin-top:-38px;border-radius:17px}
+.professionalStats>div{padding:21px 15px}
+.statIcon{font-size:17px!important;margin-bottom:5px!important}
+.professionalStats strong{font-size:25px}
+.onlineDot{color:#18a957!important}
+.systemActive{color:#168b4d!important;font-size:18px!important}
+.categorySection,.marketSection{margin-top:55px}
+.sectionLabel{display:block;margin-bottom:6px;color:var(--turquoise-dark);font-size:10px;font-weight:900;letter-spacing:1.4px}
+.sectionHead>div h2{margin:0;font-size:25px}
+.professionalCats{grid-template-columns:repeat(6,1fr);gap:14px}
+.professionalCats a{min-height:112px;border-radius:15px}
+.professionalCats i{font-size:30px}
+.premiumSection{padding:28px;border:1px solid #eadba7;border-radius:20px;background:linear-gradient(135deg,#fffdf7,#fffaf0)}
+.premiumLabel{color:#8a6808}
+.premiumEmpty{background:rgba(255,255,255,.75);border-color:#e8dcae}
+.emptyIcon{font-size:28px;margin-bottom:8px}
+.empty p{margin:8px 0 0;font-size:12px}
+.professionalInfo{margin-top:60px;padding:45px 35px}
+.infoTitle{text-align:center;max-width:650px;margin:0 auto 30px}
+.infoTitle h2{margin:4px 0 10px;font-size:27px}
+.infoTitle p{margin:0;color:var(--muted);font-size:14px}
+.professionalInfo>.infoCards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.infoCards article{border:1px solid #edf1f5;transition:.18s}
+.infoCards article:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(11,43,79,.08)}
+@media(max-width:900px){.professionalCats{grid-template-columns:repeat(4,1fr)}.professionalInfo>.infoCards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:650px){.professionalHero{min-height:390px;padding:45px 18px}.professionalHero h1{font-size:36px;letter-spacing:-1px}.professionalSearch{padding:7px;flex-direction:column}.professionalSearch .searchIcon{display:none}.professionalSearch button{width:100%;min-height:48px}.professionalStats{width:100%;margin-top:15px}.professionalCats{grid-template-columns:repeat(3,1fr)}.premiumSection{padding:18px}.professionalInfo>.infoCards{grid-template-columns:1fr 1fr}}
+@media(max-width:420px){.professionalCats{grid-template-columns:repeat(2,1fr)}.professionalInfo>.infoCards{grid-template-columns:1fr}}
