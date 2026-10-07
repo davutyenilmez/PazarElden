@@ -655,7 +655,7 @@ async function home() {
     <section class="categorySection">
       <div class="sectionHead">
         <div><small class="sectionLabel">KEŞFET</small><h2>Kategoriler</h2></div>
-        <a href="#/search?q=">Tümünü Gör →</a>
+        <a href="#/categories">Tümünü Gör →</a>
       </div>
       <div class="cats professionalCats">
         ${cats.map((c,i)=>`<a href="#/search?q=${encodeURIComponent(c)}"><i>${icons[i]}</i><b>${safe(c)}</b></a>`).join('')}
@@ -665,7 +665,7 @@ async function home() {
     <section class="marketSection premiumSection">
       <div class="sectionHead">
         <div><small class="sectionLabel premiumLabel">PAZARELDEN PREMIUM</small><h2>💎 Öne Çıkan Premium İlanlar</h2></div>
-        <a href="#/search?q=">Tümünü Gör →</a>
+        <a href="#/categories">Tümünü Gör →</a>
       </div>
       <div class="grid premiumGrid">
         ${premiumListings.length ? premiumListings.map(card).join('') :
@@ -676,7 +676,7 @@ async function home() {
     <section class="marketSection">
       <div class="sectionHead">
         <div><small class="sectionLabel">YENİ İLANLAR</small><h2>Son Eklenen İlanlar</h2></div>
-        <a href="#/search?q=">Tümünü Gör →</a>
+        <a href="#/categories">Tümünü Gör →</a>
       </div>
       <div class="grid">
         ${normalListings.length ? normalListings.map(card).join('') :
@@ -700,6 +700,33 @@ async function home() {
   `);
 }
 
+
+/* =========================================================
+   KATEGORİLER
+   ========================================================= */
+function categoriesPage() {
+  return shell(`
+    <section class="categoriesPage">
+      <div class="categoryPageHero">
+        <small class="sectionLabel">PAZARELDEN KATEGORİLERİ</small>
+        <h1>🧭 Tüm Kategoriler</h1>
+        <p>Aradığın ürünü kategorisine göre keşfet. Yeni kategoriler eklendikçe bu sayfa büyümeye devam edecek.</p>
+      </div>
+      <div class="allCategoryGrid">
+        ${cats.map((c,i)=>`
+          <a class="allCategoryCard" href="#/search?q=${encodeURIComponent(c)}">
+            <span>${icons[i]}</span>
+            <div><b>${safe(c)}</b><small>İlanları görüntüle →</small></div>
+          </a>`).join('')}
+      </div>
+      <div class="categoryHelp panel">
+        <b>Aradığın kategoriyi bulamadın mı?</b>
+        <p>Şimdilik en yakın kategoriyi veya “Diğer” seçeneğini kullanabilirsin. PazarElden büyüdükçe alt kategoriler de eklenecek.</p>
+        ${currentUser ? '<a href="#/ilan-ver">+ İlan Ver</a>' : '<a href="#/signup">Ücretsiz üye ol →</a>'}
+      </div>
+    </section>
+  `);
+}
 
 /* =========================================================
    FAVORİ
@@ -3461,6 +3488,14 @@ async function render() {
 
     html =
       await searchPage();
+
+
+  } else if (
+    path === '/categories'
+  ) {
+
+    html =
+      categoriesPage();
 
 
   } else if (
