@@ -2213,240 +2213,142 @@ async function messagesPage() {
    ========================================================= */
 
 async function profilePage() {
-
   if (!currentUser) {
-
-    location.hash =
-      '#/login';
-
-    return shell(`
-      <div class="panel">
-        Giriş yapmanız gerekiyor.
-      </div>
-    `);
-
+    location.hash = '#/login';
+    return shell('<div class="panel">Giriş yapmanız gerekiyor.</div>');
   }
 
+  const { data: mine } = await supabase
+    .from('listings')
+    .select('*, listing_images(image_url)')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: false });
 
-  const { data: mine } =
-    await supabase
-      .from('listings')
-      .select(`
-        *,
-        listing_images(image_url)
-      `)
-      .eq(
-        'user_id',
-        currentUser.id
-      )
-      .order(
-        'created_at',
-        {
-          ascending: false
-        }
-      );
+  const p = currentProfile || {};
+  const joined = p.created_at
+    ? new Date(p.created_at).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+    : '';
+  const avatar = p.avatar_url
+    ? '<img src="' + safe(p.avatar_url) + '" alt="Profil fotoğrafı">'
+    : (p.is_admin ? '👑' : '👤');
 
+  return shell(
+    '<section class="memberProfile">' +
+      '<div class="profileHero panel ' + (p.is_admin ? 'adminProfileHero' : '') + '">' +
+        '<div class="profileAvatar ' + (p.is_admin ? 'adminAvatar' : '') + '">' + avatar + '</div>' +
+        '<div class="profileIdentity">' +
+          '<div class="profileNameRow"><h1>' + safe(userName()) + '</h1>' +
+            (p.is_admin ? '<span class="adminCrown">👑 Yönetici</span>' : '') +
+          '</div>' +
+          '<div class="profileBadges">' + rankBadge() +
+            (isPremium() ? '<span class="premiumMini">💎 PREMIUM</span>' : '') +
+            (joined ? '<span class="profileMeta">📅 Üyelik: ' + safe(joined) + '</span>' : '') +
+          '</div>' +
+          (p.city ? '<div class="profileLocation">📍 ' + safe(p.city) + (p.district ? ' / ' + safe(p.district) : '') + '</div>' : '') +
+        '</div>' +
+        '<button class="profileEditBtn" onclick="toggleProfileEditor()">⚙️ Profil Düzenle</button>' +
+      '</div>' +
 
-  return shell(`
+      '<div id="profileEditor" class="panel profileEditor" hidden>' +
+        '<h3>Profilini Düzenle</h3>' +
+        '<textarea id="profileAbout" maxlength="500" placeholder="Kendinizi kısaca tanıtın...">' + safe(p.about_me || '') + '</textarea>' +
+        '<div class="profileEditGrid">' +
+          '<input id="profileCity" maxlength="80" placeholder="Şehir" value="' + safe(p.city || '') + '">' +
+          '<input id="profileDistrict" maxlength="80" placeholder="İlçe" value="' + safe(p.district || '') + '">' +
+          '<input id="profileAvatarUrl" maxlength="1000" placeholder="Profil fotoğrafı bağlantısı (isteğe bağlı)" value="' + safe(p.avatar_url || '') + '">' +
+        '</div>' +
+        '<small>Bu bilgiler herkese açık profilinizde görünür. Telefon ve e-posta gösterilmez.</small>' +
+        '<button onclick="savePublicProfile()">Değişiklikleri Kaydet</button>' +
+      '</div>' +
 
-    <section>
+      '<div class="panel publicAbout"><h3>Hakkımda</h3><p>' +
+        safe(p.about_me || 'Henüz bir tanıtım yazısı eklenmemiş.') +
+      '</p></div>' +
 
-      <div class="profileHeader panel">
-
-        <div class="avatar">
-          👤
-        </div>
-
-        <div>
-
-          <h1>
-            ${safe(userName())}
-          </h1>
-
-          ${rankBadge()}
-
-          ${
-            isPremium()
-              ? `
-                <div class="premiumBox">
-                  💎 Premium Üyelik Aktif
-                </div>
-              `
-              : ''
-          }
-
-        </div>
-
-      </div>
-
-
-      <div class="profileMenu">
-
-        <a href="#/profile">
-          📋 İlanlarım
-        </a>
-
-        <a href="#/favorites">
-          ❤️ Favorilerim
-        </a>
-
-        <a href="#/following">
-          🔔 Takiplerim
-        </a>
-
-        <a href="#/notifications">
-          🔔 Bildirimler
-        </a>
-
-        <a href="#/premium">
-          💎 Premium Üyelik
-        </a>
-
-      </div>
-
-
-      <h2>
-        İlanlarım
-      </h2>
-
-      <div class="grid">
-
-        ${
-          mine?.length
-            ? mine.map(card).join('')
-            : `
-              <div class="empty">
-                Henüz ilanınız yok.
-              </div>
-            `
-        }
-
-      </div>
-
-    </section>
-
-  `);
-
+      '<div class="profileMenu">' +
+        '<a href="#/profile">📋 İlanlarım</a>' +
+        '<a href="#/favorites">❤️ Favorilerim</a>' +
+        '<a href="#/following">🔔 Takiplerim</a>' +
+        '<a href="#/notifications">🔔 Bildirimler</a>' +
+        '<a href="#/premium">💎 Premium Üyelik</a>' +
+      '</div>' +
+      '<div class="profileSectionTitle"><h2>İlanlarım</h2><span>' + (mine?.length || 0) + '</span></div>' +
+      '<div class="grid">' + (mine?.length ? mine.map(card).join('') : '<div class="empty">Henüz ilanınız yok.</div>') + '</div>' +
+    '</section>'
+  );
 }
 
+window.toggleProfileEditor = () => {
+  const el = document.querySelector('#profileEditor');
+  if (el) el.hidden = !el.hidden;
+};
 
-/* =========================================================
-   SATIŞÇI PROFİLİ
-   ========================================================= */
+window.savePublicProfile = async () => {
+  if (!currentUser) return;
+  const about_me = document.querySelector('#profileAbout')?.value.trim() || '';
+  const city = document.querySelector('#profileCity')?.value.trim() || '';
+  const district = document.querySelector('#profileDistrict')?.value.trim() || '';
+  const avatar_url = document.querySelector('#profileAvatarUrl')?.value.trim() || null;
 
-async function sellerPage(id) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ about_me, city, district, avatar_url })
+    .eq('id', currentUser.id);
 
-  const { data: seller } =
-    await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-
-  if (!seller) {
-
-    return shell(`
-      <div class="panel">
-        Satıcı bulunamadı.
-      </div>
-    `);
-
+  if (error) {
+    alert('Profil güncellenemedi: ' + error.message);
+    return;
   }
 
+  alert('Profiliniz güncellendi.');
+  await render();
+};
 
-  const { data: listings } =
-    await supabase
-      .from('listings')
-      .select(`
-        *,
-        listing_images(image_url)
-      `)
-      .eq(
-        'user_id',
-        id
-      )
-      .eq(
-        'status',
-        'active'
-      );
+async function sellerPage(id) {
+  const { data: seller } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
 
+  if (!seller) return shell('<div class="panel">Satıcı bulunamadı.</div>');
 
-  return shell(`
+  const { data: listings } = await supabase
+    .from('listings')
+    .select('*, listing_images(image_url)')
+    .eq('user_id', id)
+    .eq('status', 'active');
 
-    <section>
+  const joined = seller.created_at
+    ? new Date(seller.created_at).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
+    : '';
+  const avatar = seller.avatar_url
+    ? '<img src="' + safe(seller.avatar_url) + '" alt="Profil fotoğrafı">'
+    : (seller.is_admin ? '👑' : '👤');
 
-      <div class="sellerProfile panel">
-
-        <div class="avatar">
-          👤
-        </div>
-
-        <h1>
-          ${safe(
-            seller.full_name ||
-            'PazarElden Kullanıcısı'
-          )}
-        </h1>
-
-        ${
-          seller.rank_name
-            ? `
-              <span class="rankBadge">
-                🏅
-                ${safe(seller.rank_name)}
-              </span>
-            `
-            : ''
-        }
-
-
-        ${
-          seller.bio
-            ? `
-              <div class="bio">
-                <h3>
-                  Satıcı Hakkında
-                </h3>
-
-                <p>
-                  ${safe(seller.bio)}
-                </p>
-              </div>
-            `
-            : ''
-        }
-
-
-        <p>
-          Telefon bilgileri gizlidir.
-        </p>
-
-      </div>
-
-
-      <h2>
-        İlanları
-      </h2>
-
-      <div class="grid">
-
-        ${
-          listings?.length
-            ? listings.map(card).join('')
-            : `
-              <div class="empty">
-                Aktif ilan bulunmuyor.
-              </div>
-            `
-        }
-
-      </div>
-
-    </section>
-
-  `);
-
+  return shell(
+    '<section class="memberProfile">' +
+      '<div class="profileHero panel ' + (seller.is_admin ? 'adminProfileHero' : '') + '">' +
+        '<div class="profileAvatar ' + (seller.is_admin ? 'adminAvatar' : '') + '">' + avatar + '</div>' +
+        '<div class="profileIdentity">' +
+          '<div class="profileNameRow"><h1>' + safe(seller.full_name || 'PazarElden Kullanıcısı') + '</h1>' +
+            (seller.is_admin ? '<span class="adminCrown">👑 Yönetici</span>' : '') +
+          '</div>' +
+          '<div class="profileBadges">' +
+            (seller.is_admin ? '<span class="rankBadge">👑 PazarElden Yöneticisi</span>' : '') +
+            (seller.premium_until && new Date(seller.premium_until).getTime() > Date.now() ? '<span class="premiumMini">💎 PREMIUM</span>' : '') +
+            (joined ? '<span class="profileMeta">📅 Üyelik: ' + safe(joined) + '</span>' : '') +
+          '</div>' +
+          (seller.city ? '<div class="profileLocation">📍 ' + safe(seller.city) + (seller.district ? ' / ' + safe(seller.district) : '') + '</div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="panel publicAbout"><h3>Hakkında</h3><p>' +
+        safe(seller.about_me || 'Bu üye henüz kendini tanıtan bir açıklama eklememiş.') +
+      '</p></div>' +
+      '<div class="profileSectionTitle"><h2>Aktif İlanları</h2><span>' + (listings?.length || 0) + '</span></div>' +
+      '<div class="grid">' + (listings?.length ? listings.map(card).join('') : '<div class="empty">Aktif ilan bulunmuyor.</div>') + '</div>' +
+    '</section>'
+  );
 }
 
 
