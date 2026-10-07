@@ -8,42 +8,21 @@ const supabase =
     : null;
 
 const cats = [
-  'Vasıta',
-  'Emlak',
-  'Cep Telefonu',
-  'Bilgisayar',
-  'Elektronik',
-  'Ev ve Yaşam',
-  'Giyim',
-  'Anne ve Bebek',
-  'Spor',
-  'Hobi',
-  'Kitap',
-  'Diğer'
+  'Vasıta','Emlak','Cep Telefonu','Bilgisayar','Elektronik',
+  'Ev ve Yaşam','Giyim','Anne ve Bebek','Spor','Hobi','Kitap','Diğer'
 ];
 
 const icons = [
-  '🚗',
-  '🏠',
-  '📱',
-  '💻',
-  '📺',
-  '🛋️',
-  '👕',
-  '🧸',
-  '⚽',
-  '🎨',
-  '📚',
-  '📦'
+  '🚗','🏠','📱','💻','📺','🛋️','👕','🧸','⚽','🎨','📚','📦'
 ];
 
 let currentUser = null;
 let currentProfile = null;
 let currentActiveListingCount = 0;
 
-/* ------------------------------------------------
-   YARDIMCI FONKSİYONLAR
------------------------------------------------- */
+/* =========================================================
+   YARDIMCILAR
+========================================================= */
 
 function safe(value = '') {
   return String(value ?? '')
@@ -55,13 +34,11 @@ function safe(value = '') {
 }
 
 function money(value) {
-  const number = Number(value || 0);
-
   return new Intl.NumberFormat('tr-TR', {
     style: 'currency',
     currency: 'TRY',
     maximumFractionDigits: 0
-  }).format(number);
+  }).format(Number(value || 0));
 }
 
 function dateText(value) {
@@ -80,6 +57,10 @@ function dateText(value) {
   }
 }
 
+function isAdmin() {
+  return currentProfile?.is_admin === true;
+}
+
 async function loadSession() {
   if (!supabase) return;
 
@@ -89,26 +70,23 @@ async function loadSession() {
   currentProfile = null;
   currentActiveListingCount = 0;
 
-  if (currentUser) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', currentUser.id)
-      .maybeSingle();
+  if (!currentUser) return;
 
-    currentProfile = profile || null;
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', currentUser.id)
+    .maybeSingle();
 
-    const { count } = await supabase
-      .from('listings')
-      .select('id', {
-        count: 'exact',
-        head: true
-      })
-      .eq('user_id', currentUser.id)
-      .eq('status', 'active');
+  currentProfile = profile || null;
 
-    currentActiveListingCount = count || 0;
-  }
+  const { count } = await supabase
+    .from('listings')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', currentUser.id)
+    .eq('status', 'active');
+
+  currentActiveListingCount = count || 0;
 }
 
 function userName() {
@@ -119,10 +97,9 @@ function userName() {
   return 'Profilim';
 }
 
-/* ------------------------------------------------
-   20 KADEMELİ ROZET SİSTEMİ
-   HER 5 AKTİF İLAN = 1 KADEME
------------------------------------------------- */
+/* =========================================================
+   20 KADEMELİ ROZET
+========================================================= */
 
 const rankNames = [
   'Onbaşı',
@@ -148,30 +125,12 @@ const rankNames = [
 ];
 
 const rankIcons = [
-  '🎖️',
-  '🎖️',
-  '⭐',
-  '⭐',
-  '🛡️',
-  '🛡️',
-  '🏅',
-  '🥉',
-  '🥈',
-  '🥇',
-  '💠',
-  '💎',
-  '✨',
-  '🏆',
-  '🏆',
-  '👑',
-  '👑',
-  '🔥',
-  '🌟',
-  '💫'
+  '🎖️','🎖️','⭐','⭐','🛡️','🛡️','🏅','🥉','🥈','🥇',
+  '💠','💎','✨','🏆','🏆','👑','👑','🔥','🌟','💫'
 ];
 
-function rankInfo(activeCount = 0, isAdmin = false) {
-  if (isAdmin) {
+function rankInfo(count = 0, admin = false) {
+  if (admin) {
     return {
       name: 'PazarElden Yöneticisi',
       icon: '👑',
@@ -179,7 +138,7 @@ function rankInfo(activeCount = 0, isAdmin = false) {
     };
   }
 
-  if (activeCount < 5) {
+  if (count < 5) {
     return {
       name: 'Yeni Üye',
       icon: '🌱',
@@ -187,10 +146,7 @@ function rankInfo(activeCount = 0, isAdmin = false) {
     };
   }
 
-  const level = Math.min(
-    20,
-    Math.floor(activeCount / 5)
-  );
+  const level = Math.min(20, Math.floor(count / 5));
 
   return {
     name: rankNames[level - 1],
@@ -199,11 +155,8 @@ function rankInfo(activeCount = 0, isAdmin = false) {
   };
 }
 
-function rankBadge(activeCount = 0, isAdmin = false) {
-  const rank = rankInfo(
-    activeCount,
-    isAdmin
-  );
+function rankBadge(count = 0, admin = false) {
+  const rank = rankInfo(count, admin);
 
   return `
     <span class="rankBadge">
@@ -212,60 +165,54 @@ function rankBadge(activeCount = 0, isAdmin = false) {
   `;
 }
 
-/* ------------------------------------------------
+/* =========================================================
    SAYFA İSKELETİ
------------------------------------------------- */
+========================================================= */
 
 function shell(content) {
   const rank = rankInfo(
     currentActiveListingCount,
-    currentProfile?.is_admin === true
+    isAdmin()
   );
 
-  const accountNav = currentUser
+  const account = currentUser
     ? `
       <div class="accountWrap">
-
-        <button
-          class="accountButton"
-          onclick="toggleAccountMenu(event)"
-        >
-          <span class="accountAvatar">
-            👤
-          </span>
+        <button class="accountButton" onclick="toggleAccountMenu(event)">
+          <span>👤</span>
 
           <span class="accountText">
             <b>${safe(userName())}</b>
-
-            <small>
-              ${rank.icon}
-              ${safe(rank.name)}
-            </small>
+            <small>${rank.icon} ${safe(rank.name)}</small>
           </span>
 
-          <span class="accountArrow">
-            ▾
-          </span>
+          <span>▾</span>
         </button>
 
-        <div
-          id="accountMenu"
-          class="accountMenu"
-        >
+        <div id="accountMenu" class="accountMenu">
 
           <div class="accountMenuHead">
             <b>${safe(userName())}</b>
 
             ${rankBadge(
               currentActiveListingCount,
-              currentProfile?.is_admin === true
+              isAdmin()
             )}
 
             <small>
-              ${currentActiveListingCount}
-              aktif ilan
+              ${currentActiveListingCount} aktif ilan
             </small>
           </div>
+
+          ${
+            isAdmin()
+              ? `
+                <a href="#/admin">
+                  👑 Yönetici Paneli
+                </a>
+              `
+              : ''
+          }
 
           <a href="#/profile">
             👤 Profilim ve İlanlarım
@@ -282,244 +229,254 @@ function shell(content) {
           <button onclick="logout()">
             ↪ Çıkış Yap
           </button>
-
         </div>
       </div>
     `
     : `
-      <a href="#/login">
-        Giriş Yap
-      </a>
-
-      <a href="#/signup">
-        Üye Ol
-      </a>
+      <a href="#/login">Giriş Yap</a>
+      <a href="#/signup">Üye Ol</a>
     `;
 
   return `
     <style>
-
-      .accountWrap {
-        position: relative;
-        margin-left: 2px;
+      .accountWrap{
+        position:relative;
       }
 
-      .accountButton {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        background: #fff;
-        color: #10233f;
-        border: 1px solid #e4e9f0;
-        border-radius: 10px;
-        padding: 7px 10px;
-        min-width: 150px;
-        box-shadow: none;
+      .accountButton{
+        display:flex;
+        align-items:center;
+        gap:8px;
+        background:#fff;
+        color:#10233f;
+        border:1px solid #e4e9f0;
+        border-radius:10px;
+        padding:7px 10px;
       }
 
-      .accountButton:hover {
-        background: #f8fafc;
-        opacity: 1;
+      .accountText{
+        display:flex;
+        flex-direction:column;
+        align-items:flex-start;
       }
 
-      .accountAvatar {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
-        display: grid;
-        place-items: center;
-        background: #edf6f7;
+      .accountText b{
+        font-size:12px;
       }
 
-      .accountText {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        line-height: 1.15;
+      .accountText small{
+        font-size:9px;
+        color:#687386;
       }
 
-      .accountText b {
-        font-size: 12px;
-        max-width: 120px;
-        overflow: hidden;
-        text-overflow: ellipsis;
+      .accountMenu{
+        display:none;
+        position:absolute;
+        right:0;
+        top:calc(100% + 8px);
+        width:230px;
+        background:#fff;
+        border:1px solid #e2e8f0;
+        border-radius:12px;
+        box-shadow:0 14px 35px rgba(0,0,0,.14);
+        padding:7px;
+        z-index:9999;
       }
 
-      .accountText small {
-        font-size: 9px;
-        color: #6b7788;
-        margin-top: 3px;
+      .accountMenu.open{
+        display:block;
       }
 
-      .accountArrow {
-        font-size: 10px;
-        margin-left: auto;
-      }
-
-      .accountMenu {
-        display: none;
-        position: absolute;
-        right: 0;
-        top: calc(100% + 9px);
-        width: 235px;
-        background: #fff;
-        border: 1px solid #e4e9f0;
-        border-radius: 12px;
-        box-shadow:
-          0 14px 35px
-          rgba(15,35,65,.15);
-        padding: 7px;
-        z-index: 999;
-      }
-
-      .accountMenu.open {
-        display: block;
-      }
-
-      .accountMenuHead {
-        padding: 10px 10px 12px;
-        border-bottom:
-          1px solid #eef1f5;
-        margin-bottom: 5px;
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-      }
-
-      .accountMenuHead b {
-        font-size: 13px;
-      }
-
-      .accountMenuHead small {
-        font-size: 10px;
-        color: #6b7788;
+      .accountMenuHead{
+        padding:10px;
+        border-bottom:1px solid #edf0f4;
+        margin-bottom:5px;
+        display:flex;
+        flex-direction:column;
+        gap:5px;
       }
 
       .accountMenu a,
-      .accountMenu button {
-        display: block;
-        width: 100%;
-        text-align: left;
-        padding: 9px 10px;
-        border: 0;
-        border-radius: 7px;
-        background: transparent;
-        color: #10233f;
-        font-size: 12px;
-        font-weight: 600;
+      .accountMenu button{
+        display:block;
+        width:100%;
+        padding:9px 10px;
+        text-align:left;
+        background:transparent;
+        color:#10233f;
+        border:0;
+        border-radius:7px;
+        font-size:12px;
+        font-weight:600;
       }
 
       .accountMenu a:hover,
-      .accountMenu button:hover {
-        background: #f4f7fa;
-        opacity: 1;
+      .accountMenu button:hover{
+        background:#f4f7fa;
       }
 
-      .rankBadge {
-        display: inline-flex;
-        align-items: center;
-        width: max-content;
-        padding: 4px 8px;
-        border-radius: 999px;
-        background: #eef8f8;
-        color: #087f87;
-        font-size: 10px;
-        font-weight: 800;
-        border: 1px solid #d4eeee;
+      .rankBadge{
+        display:inline-flex;
+        width:max-content;
+        padding:4px 8px;
+        border-radius:999px;
+        background:#e9f8f8;
+        color:#087f87;
+        border:1px solid #cceaea;
+        font-size:10px;
+        font-weight:800;
       }
 
-      .profileSummary {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 16px;
-        flex-wrap: wrap;
-        padding: 16px;
-        border: 1px solid #e4e9f0;
-        border-radius: 12px;
-        background: #f8fafc;
-        margin: 14px 0;
+      .adminTitle{
+        display:flex;
+        align-items:center;
+        gap:10px;
+        flex-wrap:wrap;
       }
 
-      .profileSummary strong {
-        display: block;
-        font-size: 16px;
-        margin-bottom: 5px;
+      .adminStats{
+        display:grid;
+        grid-template-columns:repeat(4,1fr);
+        gap:14px;
+        margin:20px 0 30px;
       }
 
-      .profileStats {
-        font-size: 12px;
-        color: #6b7788;
+      .adminStat{
+        background:#fff;
+        border:1px solid #e2e8f0;
+        border-radius:14px;
+        padding:20px;
       }
 
-      .nameLocked {
-        padding: 11px 13px;
-        border: 1px solid #e4e9f0;
-        background: #f8fafc;
-        border-radius: 8px;
-        font-weight: 700;
+      .adminStat span{
+        display:block;
+        color:#64748b;
+        font-size:12px;
       }
 
-      @media(max-width:900px) {
+      .adminStat strong{
+        display:block;
+        font-size:28px;
+        color:#0c315e;
+        margin-top:5px;
+      }
 
-        .accountText small {
-          display: none;
+      .adminTable{
+        width:100%;
+        border-collapse:collapse;
+      }
+
+      .adminTable th,
+      .adminTable td{
+        padding:11px 8px;
+        border-bottom:1px solid #edf0f4;
+        text-align:left;
+        font-size:12px;
+      }
+
+      .adminTable th{
+        color:#64748b;
+      }
+
+      .statusBadge{
+        display:inline-block;
+        padding:4px 8px;
+        border-radius:999px;
+        background:#eef2f7;
+        font-size:10px;
+        font-weight:700;
+      }
+
+      .actionRow{
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        margin-top:15px;
+      }
+
+      .actionRow button,
+      .actionRow a{
+        padding:9px 12px;
+        border-radius:8px;
+        font-size:11px;
+        font-weight:700;
+      }
+
+      .dangerButton{
+        background:#a51d2d !important;
+      }
+
+      .warningButton{
+        background:#c67b00 !important;
+      }
+
+      .successButton{
+        background:#087f87 !important;
+      }
+
+      .profileSummary{
+        display:flex;
+        justify-content:space-between;
+        gap:15px;
+        align-items:center;
+        flex-wrap:wrap;
+        padding:16px;
+        background:#f8fafc;
+        border:1px solid #e2e8f0;
+        border-radius:12px;
+        margin:15px 0;
+      }
+
+      .nameLocked{
+        padding:11px 13px;
+        background:#f8fafc;
+        border:1px solid #e2e8f0;
+        border-radius:8px;
+        font-weight:700;
+      }
+
+      @media(max-width:900px){
+        .adminStats{
+          grid-template-columns:repeat(2,1fr);
         }
 
-        .accountButton {
-          min-width: auto;
-        }
-
-        .accountArrow {
-          display: none;
+        .accountText small{
+          display:none;
         }
       }
 
+      @media(max-width:600px){
+        .adminStats{
+          grid-template-columns:1fr;
+        }
+
+        .adminTable{
+          display:block;
+          overflow-x:auto;
+        }
+      }
     </style>
 
     <header>
-
-      <a
-        class="brand"
-        href="#/"
-      >
+      <a class="brand" href="#/">
         Pazar<span>Elden</span>
       </a>
 
       <div class="topsearch">
-
-        <input
-          id="q"
-          placeholder="Ürün, marka veya kategori ara..."
-        >
-
-        <button onclick="searchNow()">
-          Ara
-        </button>
-
+        <input id="q" placeholder="Ürün, marka veya kategori ara...">
+        <button onclick="searchNow()">Ara</button>
       </div>
 
       <nav>
+        <a href="#/favorites">♡ Favorilerim</a>
+        <a href="#/messages">◯ Mesajlarım</a>
 
-        <a href="#/favorites">
-          ♡ Favorilerim
-        </a>
-
-        <a href="#/messages">
-          ◯ Mesajlarım
-        </a>
-
-        <a
-          class="cta"
-          href="#/ilan-ver"
-        >
+        <a class="cta" href="#/ilan-ver">
           + Ücretsiz İlan Ver
         </a>
 
-        ${accountNav}
-
+        ${account}
       </nav>
-
     </header>
 
     <main>
@@ -527,76 +484,41 @@ function shell(content) {
     </main>
 
     <footer>
-
       <b>PazarElden</b>
-
-      <span>
-        İkinci elin güvenli ve kolay pazarı.
-      </span>
-
-      <small>
-        © 2026 PazarElden
-      </small>
-
+      <span>İkinci elin güvenli ve kolay pazarı.</span>
+      <small>© 2026 PazarElden</small>
     </footer>
   `;
 }
 
 window.toggleAccountMenu = event => {
   event?.stopPropagation();
-
-  document
-    .querySelector('#accountMenu')
-    ?.classList
-    .toggle('open');
+  document.querySelector('#accountMenu')?.classList.toggle('open');
 };
 
-document.addEventListener(
-  'click',
-  event => {
+document.addEventListener('click', event => {
+  const wrap = document.querySelector('.accountWrap');
 
-    const wrap =
-      document.querySelector(
-        '.accountWrap'
-      );
-
-    if (
-      wrap &&
-      !wrap.contains(event.target)
-    ) {
-      document
-        .querySelector('#accountMenu')
-        ?.classList
-        .remove('open');
-    }
+  if (wrap && !wrap.contains(event.target)) {
+    document.querySelector('#accountMenu')?.classList.remove('open');
   }
-);
+});
 
 window.searchNow = () => {
-  const q =
-    document
-      .querySelector('#q')
-      ?.value
-      .trim() || '';
-
-  location.hash =
-    `#/search?q=${encodeURIComponent(q)}`;
+  const q = document.querySelector('#q')?.value.trim() || '';
+  location.hash = `#/search?q=${encodeURIComponent(q)}`;
 };
 
-/* ------------------------------------------------
+/* =========================================================
    FOTOĞRAFLAR
------------------------------------------------- */
+========================================================= */
 
 async function firstImage(listingId) {
-  if (!supabase) return null;
-
   const { data } = await supabase
     .from('listing_images')
     .select('image_url')
     .eq('listing_id', listingId)
-    .order('sort_order', {
-      ascending: true
-    })
+    .order('sort_order', { ascending:true })
     .limit(1)
     .maybeSingle();
 
@@ -605,572 +527,313 @@ async function firstImage(listingId) {
 
 async function addFirstImages(listings = []) {
   return Promise.all(
-    listings.map(
-      async listing => ({
-        ...listing,
-        image:
-          await firstImage(listing.id)
-      })
-    )
+    listings.map(async listing => ({
+      ...listing,
+      image: await firstImage(listing.id)
+    }))
   );
 }
 
-/* ------------------------------------------------
+/* =========================================================
    İLAN KARTI
------------------------------------------------- */
+========================================================= */
 
 function card(x) {
   return `
-    <a
-      class="card"
-      href="#/listing/${x.id}"
-    >
-
+    <a class="card" href="#/listing/${x.id}">
       <div class="pic">
-
         ${
           x.image
-            ? `
-              <img
-                src="${safe(x.image)}"
-                alt="${safe(x.title)}"
-              >
-            `
+            ? `<img src="${safe(x.image)}" alt="${safe(x.title)}">`
             : '📷'
         }
-
       </div>
 
       <div class="pad">
-
-        <b>
-          ${safe(x.title)}
-        </b>
-
-        <strong>
-          ${money(x.price)}
-        </strong>
+        <b>${safe(x.title)}</b>
+        <strong>${money(x.price)}</strong>
 
         <span>
           ${safe(x.city || '')}
-          ${
-            x.district
-              ? ` / ${safe(x.district)}`
-              : ''
-          }
+          ${x.district ? ` / ${safe(x.district)}` : ''}
         </span>
-
       </div>
-
     </a>
   `;
 }
 
-/* ------------------------------------------------
-   İLANLARI GETİR
------------------------------------------------- */
+/* =========================================================
+   İLANLAR
+========================================================= */
 
-async function getListings({
-  q = '',
-  category = ''
-} = {}) {
-
-  if (!supabase) return [];
-
+async function getListings({q='',category=''}={}) {
   let query = supabase
     .from('listings')
     .select('*')
-    .eq('status', 'active')
-    .order('created_at', {
-      ascending: false
-    });
+    .eq('status','active')
+    .order('created_at',{ascending:false});
 
   if (q) {
-    query = query.ilike(
-      'title',
-      `%${q}%`
-    );
+    query = query.ilike('title',`%${q}%`);
   }
 
   if (category) {
-    query = query.eq(
-      'category',
-      category
-    );
+    query = query.eq('category',category);
   }
 
-  const { data, error } =
-    await query;
+  const {data,error} = await query;
 
   if (error) {
     console.error(error);
     return [];
   }
 
-  return addFirstImages(
-    data || []
-  );
+  return addFirstImages(data || []);
 }
 
-/* ------------------------------------------------
+/* =========================================================
    ANA SAYFA
------------------------------------------------- */
+========================================================= */
 
 async function home() {
-  const listings =
-    await getListings();
+  const listings = await getListings();
 
   return shell(`
     <section class="hero">
-
       <div>
-
         <h1>
           İkinci elin
-          <em>
-            güvenli ve kolay pazarı.
-          </em>
+          <em>güvenli ve kolay pazarı.</em>
         </h1>
 
         <p>
           Kullanmadıklarını sat,
           aradığını uygun fiyata bul.
         </p>
-
       </div>
-
     </section>
 
     <section>
-
       <div class="sectionHead">
         <h2>Kategoriler</h2>
       </div>
 
       <div class="cats">
-
-        ${cats.map(
-          (cat, i) => `
-            <a
-              href="#/category/${encodeURIComponent(cat)}"
-            >
-              <i>
-                ${icons[i]}
-              </i>
-
-              <b>
-                ${safe(cat)}
-              </b>
-            </a>
-          `
-        ).join('')}
-
+        ${cats.map((cat,i)=>`
+          <a href="#/category/${encodeURIComponent(cat)}">
+            <i>${icons[i]}</i>
+            <b>${safe(cat)}</b>
+          </a>
+        `).join('')}
       </div>
-
     </section>
 
     <section>
-
       <div class="sectionHead">
-
-        <h2>
-          Son İlanlar
-        </h2>
-
-        <span>
-          ${listings.length} ilan
-        </span>
-
+        <h2>Son İlanlar</h2>
+        <span>${listings.length} ilan</span>
       </div>
 
       <div class="grid">
-
         ${
           listings.length
-            ? listings
-                .slice(0, 20)
-                .map(card)
-                .join('')
-            : `
-              <div class="empty">
-                Henüz ilan bulunmuyor.
-              </div>
-            `
+            ? listings.slice(0,20).map(card).join('')
+            : `<div class="empty">Henüz ilan bulunmuyor.</div>`
         }
-
       </div>
-
-    </section>
-
-    <section class="trust">
-
-      <div>
-
-        <article>
-          🔒
-          <b>Güvenli</b>
-          <p>
-            Kullanıcı odaklı pazar yeri.
-          </p>
-        </article>
-
-        <article>
-          💬
-          <b>Kolay İletişim</b>
-          <p>
-            Satıcıyla doğrudan mesajlaş.
-          </p>
-        </article>
-
-        <article>
-          ♡
-          <b>Favoriler</b>
-          <p>
-            Beğendiğin ilanları sakla.
-          </p>
-        </article>
-
-      </div>
-
     </section>
   `);
 }
 
-/* ------------------------------------------------
+/* =========================================================
    ARAMA
------------------------------------------------- */
+========================================================= */
 
 async function searchPage() {
-  const raw =
-    location.hash.split('?')[1] || '';
+  const params = new URLSearchParams(
+    location.hash.split('?')[1] || ''
+  );
 
-  const params =
-    new URLSearchParams(raw);
-
-  const q =
-    params.get('q') || '';
-
-  const listings =
-    await getListings({ q });
+  const q = params.get('q') || '';
+  const listings = await getListings({q});
 
   return shell(`
     <section>
-
       <div class="sectionHead">
-
-        <h1>
-          Arama Sonuçları
-        </h1>
-
-        <span>
-          ${listings.length} ilan
-        </span>
-
+        <h1>Arama Sonuçları</h1>
+        <span>${listings.length} ilan</span>
       </div>
 
-      ${
-        q
-          ? `
-            <p>
-              "<b>${safe(q)}</b>"
-              için sonuçlar
-            </p>
-          `
-          : ''
-      }
+      ${q ? `<p>"<b>${safe(q)}</b>" için sonuçlar</p>` : ''}
 
       <div class="grid">
-
         ${
           listings.length
-            ? listings
-                .map(card)
-                .join('')
-            : `
-              <div class="empty">
-                Aramanıza uygun ilan bulunamadı.
-              </div>
-            `
+            ? listings.map(card).join('')
+            : `<div class="empty">Sonuç bulunamadı.</div>`
         }
-
       </div>
-
     </section>
   `);
 }
 
-/* ------------------------------------------------
+/* =========================================================
    KATEGORİ
------------------------------------------------- */
+========================================================= */
 
 async function categoryPage(category) {
-  const listings =
-    await getListings({
-      category
-    });
+  const listings = await getListings({category});
 
   return shell(`
     <section>
-
       <div class="sectionHead">
-
-        <h1>
-          ${safe(category)}
-        </h1>
-
-        <span>
-          ${listings.length} ilan
-        </span>
-
+        <h1>${safe(category)}</h1>
+        <span>${listings.length} ilan</span>
       </div>
 
       <div class="grid">
-
         ${
           listings.length
-            ? listings
-                .map(card)
-                .join('')
-            : `
-              <div class="empty">
-                Bu kategoride henüz ilan yok.
-              </div>
-            `
+            ? listings.map(card).join('')
+            : `<div class="empty">Bu kategoride henüz ilan yok.</div>`
         }
-
       </div>
-
     </section>
   `);
 }
 
-/* ------------------------------------------------
-   FAVORİ KONTROLÜ
------------------------------------------------- */
+/* =========================================================
+   FAVORİ
+========================================================= */
 
 async function isFavorite(listingId) {
-  if (
-    !currentUser ||
-    !supabase
-  ) {
-    return false;
-  }
+  if (!currentUser) return false;
 
-  const { data } = await supabase
+  const {data} = await supabase
     .from('favorites')
     .select('id')
-    .eq(
-      'user_id',
-      currentUser.id
-    )
-    .eq(
-      'listing_id',
-      listingId
-    )
+    .eq('user_id',currentUser.id)
+    .eq('listing_id',listingId)
     .maybeSingle();
 
   return !!data;
 }
 
-window.toggleFavorite =
-  async listingId => {
+window.toggleFavorite = async listingId => {
+  if (!currentUser) {
+    location.hash='#/login';
+    return;
+  }
 
-    if (!currentUser) {
-      location.hash = '#/login';
-      return;
-    }
+  const favorite = await isFavorite(listingId);
 
-    const favorite =
-      await isFavorite(listingId);
+  if (favorite) {
+    await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id',currentUser.id)
+      .eq('listing_id',listingId);
+  } else {
+    await supabase
+      .from('favorites')
+      .insert({
+        user_id:currentUser.id,
+        listing_id:listingId
+      });
+  }
 
-    if (favorite) {
+  await render();
+};
 
-      await supabase
-        .from('favorites')
-        .delete()
-        .eq(
-          'user_id',
-          currentUser.id
-        )
-        .eq(
-          'listing_id',
-          listingId
-        );
-
-    } else {
-
-      await supabase
-        .from('favorites')
-        .insert({
-          user_id:
-            currentUser.id,
-
-          listing_id:
-            listingId
-        });
-    }
-
-    await render();
-  };
-
-/* ------------------------------------------------
+/* =========================================================
    İLAN DETAY
------------------------------------------------- */
+========================================================= */
 
 async function listingDetail(id) {
-  if (!supabase) {
+  const {data:x,error} = await supabase
+    .from('listings')
+    .select('*')
+    .eq('id',id)
+    .maybeSingle();
+
+  if (error || !x || x.status==='deleted') {
+    return shell(`
+      <section>
+        <div class="empty">İlan bulunamadı.</div>
+      </section>
+    `);
+  }
+
+  const own = currentUser?.id === x.user_id;
+  const admin = isAdmin();
+
+  if (x.status !== 'active' && !own && !admin) {
     return shell(`
       <section>
         <div class="empty">
-          Bağlantı kurulamadı.
+          Bu ilan şu anda yayında değil.
         </div>
       </section>
     `);
   }
 
-  const { data: x, error } =
-    await supabase
-      .from('listings')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
+  const {data:images} = await supabase
+    .from('listing_images')
+    .select('*')
+    .eq('listing_id',id)
+    .order('sort_order',{ascending:true});
 
-  if (
-    error ||
-    !x ||
-    x.status === 'deleted'
-  ) {
-    return shell(`
-      <section>
-        <div class="empty">
-          İlan bulunamadı.
-        </div>
-      </section>
-    `);
-  }
+  const {data:seller} = await supabase
+    .from('profiles')
+    .select('full_name,is_admin')
+    .eq('id',x.user_id)
+    .maybeSingle();
 
-  const { data: images } =
-    await supabase
-      .from('listing_images')
-      .select('*')
-      .eq('listing_id', id)
-      .order('sort_order', {
-        ascending: true
-      });
+  const {count:sellerActiveCount} = await supabase
+    .from('listings')
+    .select('id',{count:'exact',head:true})
+    .eq('user_id',x.user_id)
+    .eq('status','active');
 
-  let sellerName =
-    'PazarElden kullanıcısı';
-
-  let sellerIsAdmin = false;
-  let sellerActiveCount = 0;
-
-  if (x.user_id) {
-
-    const { data: seller } =
-      await supabase
-        .from('profiles')
-        .select(
-          'full_name,is_admin'
-        )
-        .eq(
-          'id',
-          x.user_id
-        )
-        .maybeSingle();
-
-    if (seller?.full_name) {
-      sellerName =
-        seller.full_name;
-    }
-
-    sellerIsAdmin =
-      seller?.is_admin === true;
-
-    const { count } =
-      await supabase
-        .from('listings')
-        .select(
-          'id',
-          {
-            count: 'exact',
-            head: true
-          }
-        )
-        .eq(
-          'user_id',
-          x.user_id
-        )
-        .eq(
-          'status',
-          'active'
-        );
-
-    sellerActiveCount =
-      count || 0;
-  }
-
-  const own =
-    currentUser?.id ===
-    x.user_id;
+  const sellerName =
+    seller?.full_name || 'PazarElden kullanıcısı';
 
   const favorite =
-    own
-      ? false
-      : await isFavorite(id);
+    own ? false : await isFavorite(id);
+
+  let statusText = '';
+
+  if (x.status === 'sold') statusText = '✅ SATILDI';
+  if (x.status === 'inactive') statusText = '⏸️ YAYINDA DEĞİL';
 
   return shell(`
     <section>
-
       <div class="detail">
 
         <div>
-
           <div class="gallery">
-
             ${
               images?.length
-                ? images.map(
-                    image => `
-                      <img
-                        src="${safe(image.image_url)}"
-                        alt="${safe(x.title)}"
-                      >
-                    `
-                  ).join('')
-                : `
-                  <div class="noimg">
-                    📷
-                  </div>
-                `
+                ? images.map(img=>`
+                    <img
+                      src="${safe(img.image_url)}"
+                      alt="${safe(x.title)}"
+                    >
+                  `).join('')
+                : `<div class="noimg">📷</div>`
             }
-
           </div>
 
-          <div
-            class="panel"
-            style="
-              width:100%;
-              margin-top:20px
-            "
-          >
-
-            <h2>
-              İlan Açıklaması
-            </h2>
-
-            <p>
-              ${safe(x.description || 'Açıklama eklenmemiş.')}
-            </p>
-
+          <div class="panel" style="width:100%;margin-top:20px">
+            <h2>İlan Açıklaması</h2>
+            <p>${safe(x.description || 'Açıklama eklenmemiş.')}</p>
           </div>
-
         </div>
 
         <aside>
+          ${statusText ? `<h3>${statusText}</h3>` : ''}
 
-          <h1>
-            ${safe(x.title)}
-          </h1>
+          <h1>${safe(x.title)}</h1>
 
           <div class="price">
             ${money(x.price)}
@@ -1179,11 +842,7 @@ async function listingDetail(id) {
           <p>
             <b>Konum:</b>
             ${safe(x.city || '')}
-            ${
-              x.district
-                ? ` / ${safe(x.district)}`
-                : ''
-            }
+            ${x.district ? ` / ${safe(x.district)}` : ''}
           </p>
 
           <p>
@@ -1191,50 +850,76 @@ async function listingDetail(id) {
             ${safe(x.condition || '')}
           </p>
 
-          <p>
-            <b>Satıcı</b>
-          </p>
+          <p><b>Satıcı</b></p>
 
-          <p>
-            ${safe(sellerName)}
-          </p>
+          <p>${safe(sellerName)}</p>
 
           <p>
             ${rankBadge(
-              sellerActiveCount,
-              sellerIsAdmin
+              sellerActiveCount || 0,
+              seller?.is_admin === true
             )}
 
             <small>
-              ${sellerActiveCount}
-              aktif ilan
+              ${sellerActiveCount || 0} aktif ilan
             </small>
           </p>
 
           ${
-            own
+            own || admin
               ? `
-                <p>
-                  Bu ilan size ait.
-                </p>
+                <div class="actionRow">
+                  <a href="#/edit/${x.id}">
+                    ✏️ Düzenle
+                  </a>
 
-                <button
-                  class="wide"
-                  onclick="deleteListing('${x.id}')"
-                >
-                  İlanı Sil
-                </button>
+                  ${
+                    x.status !== 'sold'
+                      ? `
+                        <button
+                          class="successButton"
+                          onclick="changeListingStatus('${x.id}','sold')"
+                        >
+                          ✅ Satıldı
+                        </button>
+                      `
+                      : ''
+                  }
+
+                  ${
+                    x.status === 'active'
+                      ? `
+                        <button
+                          class="warningButton"
+                          onclick="changeListingStatus('${x.id}','inactive')"
+                        >
+                          ⏸️ Yayından Kaldır
+                        </button>
+                      `
+                      : `
+                        <button
+                          class="successButton"
+                          onclick="changeListingStatus('${x.id}','active')"
+                        >
+                          ▶️ Tekrar Yayınla
+                        </button>
+                      `
+                  }
+
+                  <button
+                    class="dangerButton"
+                    onclick="deleteListing('${x.id}')"
+                  >
+                    🗑️ İlanı Sil
+                  </button>
+                </div>
               `
               : `
                 <button
                   class="wide"
                   onclick="toggleFavorite('${x.id}')"
                 >
-                  ${
-                    favorite
-                      ? '♥ Favorilerden Çıkar'
-                      : '♡ Favorilere Ekle'
-                  }
+                  ${favorite ? '♥ Favorilerden Çıkar' : '♡ Favorilere Ekle'}
                 </button>
 
                 <button
@@ -1245,1623 +930,1090 @@ async function listingDetail(id) {
                 </button>
               `
           }
-
         </aside>
-
       </div>
-
     </section>
   `);
 }
 
-/* ------------------------------------------------
-   İLAN SİL
------------------------------------------------- */
+/* =========================================================
+   İLAN DURUMU
+========================================================= */
 
-window.deleteListing =
-  async listingId => {
+window.changeListingStatus = async (id,status) => {
+  if (!currentUser) return;
 
-    if (!currentUser) return;
-
-    const ok = confirm(
-      'Bu ilanı silmek istediğinize emin misiniz?'
-    );
-
-    if (!ok) return;
-
-    const { error } =
-      await supabase
-        .from('listings')
-        .update({
-          status: 'deleted'
-        })
-        .eq('id', listingId)
-        .eq(
-          'user_id',
-          currentUser.id
-        );
-
-    if (error) {
-      alert(
-        'İlan silinemedi: ' +
-        error.message
-      );
-
-      return;
-    }
-
-    await loadSession();
-
-    location.hash =
-      '#/profile';
+  const messages = {
+    active:'İlan tekrar yayınlansın mı?',
+    inactive:'İlan yayından kaldırılsın mı?',
+    sold:'İlan satıldı olarak işaretlensin mi?'
   };
 
-/* ------------------------------------------------
-   GİRİŞ / ÜYELİK
------------------------------------------------- */
+  if (!confirm(messages[status] || 'İşlem yapılsın mı?')) {
+    return;
+  }
+
+  let query = supabase
+    .from('listings')
+    .update({status})
+    .eq('id',id);
+
+  if (!isAdmin()) {
+    query = query.eq('user_id',currentUser.id);
+  }
+
+  const {error} = await query;
+
+  if (error) {
+    alert('İşlem yapılamadı: '+error.message);
+    return;
+  }
+
+  await loadSession();
+  await render();
+};
+
+/* =========================================================
+   İLAN SİL
+========================================================= */
+
+window.deleteListing = async id => {
+  if (!currentUser) return;
+
+  if (!confirm('Bu ilanı silmek istediğinize emin misiniz?')) {
+    return;
+  }
+
+  let query = supabase
+    .from('listings')
+    .update({status:'deleted'})
+    .eq('id',id);
+
+  if (!isAdmin()) {
+    query = query.eq('user_id',currentUser.id);
+  }
+
+  const {error} = await query;
+
+  if (error) {
+    alert('İlan silinemedi: '+error.message);
+    return;
+  }
+
+  await loadSession();
+
+  location.hash =
+    isAdmin() ? '#/admin' : '#/profile';
+};
+
+/* =========================================================
+   İLAN DÜZENLE
+========================================================= */
+
+async function editListingPage(id) {
+  if (!currentUser) {
+    location.hash='#/login';
+    return '';
+  }
+
+  const {data:x} = await supabase
+    .from('listings')
+    .select('*')
+    .eq('id',id)
+    .maybeSingle();
+
+  if (!x) {
+    return shell(`<div class="empty">İlan bulunamadı.</div>`);
+  }
+
+  if (x.user_id !== currentUser.id && !isAdmin()) {
+    return shell(`<div class="empty">Bu ilanı düzenleme yetkiniz yok.</div>`);
+  }
+
+  return shell(`
+    <section>
+      <div class="panel">
+        <h1>✏️ İlanı Düzenle</h1>
+
+        <label>Başlık</label>
+        <input id="editTitle" value="${safe(x.title)}">
+
+        <label>Kategori</label>
+        <select id="editCategory">
+          ${cats.map(cat=>`
+            <option
+              value="${safe(cat)}"
+              ${x.category===cat ? 'selected' : ''}
+            >
+              ${safe(cat)}
+            </option>
+          `).join('')}
+        </select>
+
+        <label>Fiyat</label>
+        <input
+          id="editPrice"
+          type="number"
+          value="${safe(x.price)}"
+        >
+
+        <label>Ürün Durumu</label>
+        <select id="editCondition">
+          ${['Sıfır','Yeni gibi','İyi','Kullanılmış'].map(c=>`
+            <option
+              value="${c}"
+              ${x.condition===c ? 'selected' : ''}
+            >
+              ${c}
+            </option>
+          `).join('')}
+        </select>
+
+        <label>İl</label>
+        <input id="editCity" value="${safe(x.city || '')}">
+
+        <label>İlçe</label>
+        <input id="editDistrict" value="${safe(x.district || '')}">
+
+        <label>Açıklama</label>
+        <textarea id="editDescription">${safe(x.description || '')}</textarea>
+
+        <button onclick="saveListingEdit('${x.id}')">
+          Değişiklikleri Kaydet
+        </button>
+
+        <p id="editMsg"></p>
+      </div>
+    </section>
+  `);
+}
+
+window.saveListingEdit = async id => {
+  const msg = document.querySelector('#editMsg');
+
+  const title = document.querySelector('#editTitle')?.value.trim();
+  const category = document.querySelector('#editCategory')?.value;
+  const price = Number(document.querySelector('#editPrice')?.value || 0);
+  const condition = document.querySelector('#editCondition')?.value;
+  const city = document.querySelector('#editCity')?.value.trim();
+  const district = document.querySelector('#editDistrict')?.value.trim();
+  const description = document.querySelector('#editDescription')?.value.trim();
+
+  if (!title || !category || price<=0) {
+    msg.textContent='Başlık, kategori ve fiyat zorunludur.';
+    return;
+  }
+
+  let query = supabase
+    .from('listings')
+    .update({
+      title,
+      category,
+      price,
+      condition,
+      city,
+      district,
+      description
+    })
+    .eq('id',id);
+
+  if (!isAdmin()) {
+    query=query.eq('user_id',currentUser.id);
+  }
+
+  const {error}=await query;
+
+  if (error) {
+    msg.textContent='Kaydedilemedi: '+error.message;
+    return;
+  }
+
+  location.hash=`#/listing/${id}`;
+};
+
+/* =========================================================
+   ÜYELİK
+========================================================= */
 
 function auth(kind) {
   return shell(`
     <div class="auth panel">
+      <h1>${kind==='login' ? 'Giriş Yap' : 'Üye Ol'}</h1>
 
-      <h1>
-        ${
-          kind === 'login'
-            ? 'Giriş Yap'
-            : 'Üye Ol'
-        }
-      </h1>
+      <input id="email" type="email" placeholder="E-posta">
+      <input id="pass" type="password" placeholder="Şifre">
 
-      <input
-        id="email"
-        type="email"
-        placeholder="E-posta"
-      >
-
-      <input
-        id="pass"
-        type="password"
-        placeholder="Şifre"
-      >
-
-      <button
-        onclick="doAuth('${kind}')"
-      >
-        ${
-          kind === 'login'
-            ? 'Giriş Yap'
-            : 'Hesap Oluştur'
-        }
+      <button onclick="doAuth('${kind}')">
+        ${kind==='login' ? 'Giriş Yap' : 'Hesap Oluştur'}
       </button>
 
       ${
-        kind === 'signup'
-          ? `
-            <p>
-              Hesabınızı oluşturduktan sonra
-              profil adınızı bir kez
-              belirleyebilirsiniz.
-            </p>
-          `
+        kind==='signup'
+          ? `<p>Profil adınızı giriş yaptıktan sonra bir kez belirleyebilirsiniz.</p>`
           : ''
       }
 
       <p id="authMsg"></p>
-
     </div>
   `);
 }
 
-window.doAuth =
-  async kind => {
+window.doAuth = async kind => {
+  const email=document.querySelector('#email')?.value.trim();
+  const password=document.querySelector('#pass')?.value;
+  const msg=document.querySelector('#authMsg');
 
-    if (!supabase) return;
+  if (!email || !password) {
+    msg.textContent='E-posta ve şifreyi girin.';
+    return;
+  }
 
-    const email =
-      document
-        .querySelector('#email')
-        ?.value
-        .trim();
-
-    const password =
-      document
-        .querySelector('#pass')
-        ?.value;
-
-    const msg =
-      document
-        .querySelector('#authMsg');
-
-    if (
-      !email ||
-      !password
-    ) {
-      msg.textContent =
-        'E-posta ve şifreyi girin.';
-
-      return;
-    }
-
-    msg.textContent =
-      'İşlem yapılıyor...';
-
-    if (kind === 'login') {
-
-      const { data, error } =
-        await supabase.auth
-          .signInWithPassword({
-            email,
-            password
-          });
-
-      if (error) {
-        msg.textContent =
-          error.message;
-
-        return;
-      }
-
-      currentUser =
-        data.user;
-
-      await loadSession();
-
-      location.hash =
-        '#/';
-
-      await render();
-
-      return;
-    }
-
-    const { data, error } =
-      await supabase.auth
-        .signUp({
-          email,
-          password
-        });
+  if (kind==='login') {
+    const {error}=await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
     if (error) {
-      msg.textContent =
-        error.message;
-
+      msg.textContent=error.message;
       return;
     }
 
-    if (
-      data.user &&
-      data.session
-    ) {
-
-      const { data: existing } =
-        await supabase
-          .from('profiles')
-          .select('id')
-          .eq(
-            'id',
-            data.user.id
-          )
-          .maybeSingle();
-
-      if (!existing) {
-
-        await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            full_name: ''
-          });
-      }
-    }
-
-    msg.textContent =
-      'Kayıt oluşturuldu. Giriş yaptıktan sonra profil adınızı bir kez belirleyebilirsiniz.';
-  };
-
-window.logout =
-  async () => {
-
-    if (supabase) {
-      await supabase.auth
-        .signOut();
-    }
-
-    currentUser = null;
-    currentProfile = null;
-    currentActiveListingCount = 0;
-
-    location.hash =
-      '#/';
-
+    await loadSession();
+    location.hash='#/';
     await render();
-  };
+    return;
+  }
 
-/* ------------------------------------------------
+  const {data,error}=await supabase.auth.signUp({
+    email,
+    password
+  });
+
+  if (error) {
+    msg.textContent=error.message;
+    return;
+  }
+
+  if (data.user && data.session) {
+    const {data:existing}=await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id',data.user.id)
+      .maybeSingle();
+
+    if (!existing) {
+      await supabase.from('profiles').insert({
+        id:data.user.id,
+        full_name:''
+      });
+    }
+  }
+
+  msg.textContent=
+    'Kayıt oluşturuldu. Giriş yaptıktan sonra profil adınızı belirleyebilirsiniz.';
+};
+
+window.logout = async () => {
+  await supabase.auth.signOut();
+
+  currentUser=null;
+  currentProfile=null;
+  currentActiveListingCount=0;
+
+  location.hash='#/';
+  await render();
+};
+
+/* =========================================================
    PROFİL
------------------------------------------------- */
+========================================================= */
 
 async function profilePage() {
   if (!currentUser) {
-    location.hash =
-      '#/login';
-
+    location.hash='#/login';
     return '';
   }
 
-  const { data } =
-    await supabase
-      .from('listings')
-      .select('*')
-      .eq(
-        'user_id',
-        currentUser.id
-      )
-      .eq(
-        'status',
-        'active'
-      )
-      .order(
-        'created_at',
-        {
-          ascending: false
-        }
-      );
+  const {data}=await supabase
+    .from('listings')
+    .select('*')
+    .eq('user_id',currentUser.id)
+    .neq('status','deleted')
+    .order('created_at',{ascending:false});
 
-  const myListings =
-    await addFirstImages(
-      data || []
-    );
+  const listings=await addFirstImages(data || []);
 
-  const activeCount =
-    myListings.length;
+  const chosenName=currentProfile?.full_name?.trim() || '';
 
-  const isAdmin =
-    currentProfile?.is_admin === true;
-
-  const chosenName =
-    currentProfile
-      ?.full_name
-      ?.trim() || '';
-
-  const rank =
-    rankInfo(
-      activeCount,
-      isAdmin
-    );
-
-  let nextRankText = '';
-
-  if (
-    !isAdmin &&
-    rank.level < 20
-  ) {
-
-    const remaining =
-      activeCount < 5
-        ? 5 - activeCount
-        : 5 - (
-            activeCount % 5
-          );
-
-    nextRankText =
-      ` • Sonraki rozet için ${remaining} ilan`;
-  }
-
-  const nameArea =
-    isAdmin
+  const nameArea=isAdmin()
+    ? `
+      <label>Profil adı</label>
+      <input id="profileName" value="${safe(chosenName)}">
+      <button onclick="saveProfileName()">Profil Adını Kaydet</button>
+      <p id="profileMsg"></p>
+      <p>👑 Yönetici olarak profil adınızı değiştirebilirsiniz.</p>
+    `
+    : chosenName
       ? `
-        <label>
-          Profil adı
-        </label>
-
-        <input
-          id="profileName"
-          value="${safe(chosenName)}"
-          placeholder="Profil adınız"
-        >
-
-        <button
-          onclick="saveProfileName()"
-        >
-          Profil Adını Kaydet
-        </button>
-
-        <p id="profileMsg"></p>
-
-        <p>
-          👑 Yönetici hesabı olduğunuz
-          için profil adınızı istediğiniz
-          zaman değiştirebilirsiniz.
-        </p>
+        <label>Profil adı</label>
+        <div class="nameLocked">${safe(chosenName)} 🔒</div>
+        <p>Profil adı bir kez belirlenir ve değiştirilemez.</p>
       `
-      : chosenName
-        ? `
-          <label>
-            Profil adı
-          </label>
-
-          <div class="nameLocked">
-            ${safe(chosenName)} 🔒
-          </div>
-
-          <p>
-            Profil adınız belirlenmiştir
-            ve değiştirilemez.
-          </p>
-        `
-        : `
-          <label>
-            Profil adı
-          </label>
-
-          <input
-            id="profileName"
-            value=""
-            placeholder="Kullanmak istediğiniz profil adı"
-          >
-
-          <p>
-            Bu adı yalnızca bir kez
-            belirleyebilirsiniz.
-            Kaydettikten sonra
-            değiştirilemez.
-          </p>
-
-          <button
-            onclick="saveProfileName()"
-          >
-            Profil Adını Kaydet
-          </button>
-
-          <p id="profileMsg"></p>
-        `;
+      : `
+        <label>Profil adı</label>
+        <input id="profileName" placeholder="Profil adınız">
+        <p>Bu adı yalnızca bir kez belirleyebilirsiniz.</p>
+        <button onclick="saveProfileName()">Profil Adını Kaydet</button>
+        <p id="profileMsg"></p>
+      `;
 
   return shell(`
     <section>
-
       <div class="panel">
-
-        <h1>
-          Profilim
-        </h1>
+        <h1>Profilim</h1>
 
         <div class="profileSummary">
+          <div>
+            <strong>${safe(chosenName || 'Profil adınızı belirleyin')}</strong>
+            ${rankBadge(currentActiveListingCount,isAdmin())}
+          </div>
 
           <div>
-
-            <strong>
-              ${
-                safe(
-                  chosenName ||
-                  'Profil adınızı belirleyin'
-                )
-              }
-            </strong>
-
-            ${rankBadge(
-              activeCount,
-              isAdmin
-            )}
-
+            ${currentActiveListingCount} aktif ilan
           </div>
-
-          <div class="profileStats">
-
-            <b>
-              ${activeCount}
-            </b>
-
-            aktif ilan
-
-            ${nextRankText}
-
-          </div>
-
         </div>
 
         <p>
           <b>E-posta:</b>
-          ${safe(
-            currentUser.email || ''
-          )}
+          ${safe(currentUser.email || '')}
         </p>
 
         ${nameArea}
-
       </div>
 
       <div class="sectionHead">
-
-        <h2>
-          İlanlarım
-        </h2>
-
-        <span>
-          ${activeCount}
-          aktif ilan
-        </span>
-
+        <h2>İlanlarım</h2>
+        <span>${listings.length} ilan</span>
       </div>
 
       <div class="grid">
-
         ${
-          myListings.length
-            ? myListings
-                .map(card)
-                .join('')
-            : `
-              <div class="empty">
-                Henüz aktif ilanınız
-                bulunmuyor.
-              </div>
-            `
+          listings.length
+            ? listings.map(card).join('')
+            : `<div class="empty">Henüz ilanınız bulunmuyor.</div>`
         }
-
       </div>
-
     </section>
   `);
 }
 
-window.saveProfileName =
-  async () => {
+window.saveProfileName=async()=>{
+  const name=document.querySelector('#profileName')?.value.trim();
+  const msg=document.querySelector('#profileMsg');
 
-    if (!currentUser) return;
+  if (!name) {
+    msg.textContent='Profil adı boş bırakılamaz.';
+    return;
+  }
 
-    const name =
-      document
-        .querySelector(
-          '#profileName'
-        )
-        ?.value
-        .trim();
+  if (!isAdmin() && currentProfile?.full_name?.trim()) {
+    msg.textContent='Profil adınız daha önce belirlenmiş.';
+    return;
+  }
 
-    const msg =
-      document
-        .querySelector(
-          '#profileMsg'
-        );
-
-    const isAdmin =
-      currentProfile
-        ?.is_admin === true;
-
-    const alreadyChosen =
-      !!currentProfile
-        ?.full_name
-        ?.trim();
-
-    if (!name) {
-
-      if (msg) {
-        msg.textContent =
-          'Profil adı boş bırakılamaz.';
-      }
-
+  if (!isAdmin()) {
+    if (!confirm(`Profil adınız "${name}" olacak ve daha sonra değiştirilemeyecek. Onaylıyor musunuz?`)) {
       return;
     }
+  }
 
-    if (
-      !isAdmin &&
-      alreadyChosen
-    ) {
+  let result;
 
-      if (msg) {
-        msg.textContent =
-          'Profil adınız daha önce belirlenmiş.';
-      }
+  if (currentProfile) {
+    result=await supabase
+      .from('profiles')
+      .update({full_name:name})
+      .eq('id',currentUser.id);
+  } else {
+    result=await supabase
+      .from('profiles')
+      .insert({
+        id:currentUser.id,
+        full_name:name
+      });
+  }
 
-      return;
-    }
+  if (result.error) {
+    msg.textContent='Kaydedilemedi: '+result.error.message;
+    return;
+  }
 
-    if (!isAdmin) {
+  await loadSession();
+  await render();
+};
 
-      const ok =
-        confirm(
-          `Profil adınız "${name}" olacak. Bu adı daha sonra değiştiremeyeceksiniz. Kaydetmek istiyor musunuz?`
-        );
-
-      if (!ok) return;
-    }
-
-    let result;
-
-    if (currentProfile) {
-
-      result =
-        await supabase
-          .from('profiles')
-          .update({
-            full_name: name
-          })
-          .eq(
-            'id',
-            currentUser.id
-          );
-
-    } else {
-
-      result =
-        await supabase
-          .from('profiles')
-          .insert({
-            id:
-              currentUser.id,
-
-            full_name:
-              name
-          });
-    }
-
-    if (result.error) {
-
-      if (msg) {
-        msg.textContent =
-          'Kaydedilemedi: ' +
-          result.error.message;
-      }
-
-      return;
-    }
-
-    await loadSession();
-    await render();
-  };
-
-/* ------------------------------------------------
+/* =========================================================
    İLAN VER
------------------------------------------------- */
+========================================================= */
 
 function newListingPage() {
   if (!currentUser) {
-    location.hash =
-      '#/login';
-
+    location.hash='#/login';
     return '';
   }
 
   return shell(`
     <section>
-
       <div class="panel">
+        <h1>Ücretsiz İlan Ver</h1>
 
-        <h1>
-          Ücretsiz İlan Ver
-        </h1>
+        <label>İlan başlığı</label>
+        <input id="listingTitle">
 
-        <div class="form">
+        <label>Kategori</label>
+        <select id="listingCategory">
+          <option value="">Kategori seçin</option>
+          ${cats.map(c=>`<option value="${safe(c)}">${safe(c)}</option>`).join('')}
+        </select>
 
-          <label>
-            İlan başlığı
-          </label>
+        <label>Fiyat</label>
+        <input id="listingPrice" type="number">
 
-          <input
-            id="listingTitle"
-            placeholder="Örn: Temiz iPhone 14"
-          >
+        <label>Ürün durumu</label>
+        <select id="listingCondition">
+          <option>Sıfır</option>
+          <option>Yeni gibi</option>
+          <option>İyi</option>
+          <option>Kullanılmış</option>
+        </select>
 
-          <label>
-            Kategori
-          </label>
+        <label>İl</label>
+        <input id="listingCity">
 
-          <select id="listingCategory">
+        <label>İlçe</label>
+        <input id="listingDistrict">
 
-            <option value="">
-              Kategori seçin
-            </option>
+        <label>Açıklama</label>
+        <textarea id="listingDescription"></textarea>
 
-            ${cats.map(
-              cat => `
-                <option
-                  value="${safe(cat)}"
-                >
-                  ${safe(cat)}
-                </option>
-              `
-            ).join('')}
+        <label>Fotoğraflar</label>
+        <input id="listingPhotos" type="file" accept="image/*" multiple>
 
-          </select>
+        <button onclick="publishListing()">İlanı Yayınla</button>
 
-          <label>
-            Fiyat
-          </label>
-
-          <input
-            id="listingPrice"
-            type="number"
-            min="0"
-            placeholder="0"
-          >
-
-          <label>
-            Ürün durumu
-          </label>
-
-          <select id="listingCondition">
-
-            <option value="Sıfır">
-              Sıfır
-            </option>
-
-            <option value="Yeni gibi">
-              Yeni gibi
-            </option>
-
-            <option value="İyi">
-              İyi
-            </option>
-
-            <option value="Kullanılmış">
-              Kullanılmış
-            </option>
-
-          </select>
-
-          <label>
-            İl
-          </label>
-
-          <input
-            id="listingCity"
-            placeholder="Örn: Sakarya"
-          >
-
-          <label>
-            İlçe
-          </label>
-
-          <input
-            id="listingDistrict"
-            placeholder="Örn: Adapazarı"
-          >
-
-          <label>
-            Açıklama
-          </label>
-
-          <textarea
-            id="listingDescription"
-            placeholder="Ürün hakkında detaylı bilgi verin."
-          ></textarea>
-
-          <label>
-            Fotoğraflar
-          </label>
-
-          <input
-            id="listingPhotos"
-            type="file"
-            accept="image/*"
-            multiple
-          >
-
-          <button
-            onclick="publishListing()"
-          >
-            İlanı Yayınla
-          </button>
-
-          <p id="listingMsg"></p>
-
-        </div>
-
+        <p id="listingMsg"></p>
       </div>
-
     </section>
   `);
 }
 
-window.publishListing =
-  async () => {
+window.publishListing=async()=>{
+  const msg=document.querySelector('#listingMsg');
 
-    if (
-      !currentUser ||
-      !supabase
-    ) {
-      location.hash =
-        '#/login';
+  const title=document.querySelector('#listingTitle')?.value.trim();
+  const category=document.querySelector('#listingCategory')?.value;
+  const price=Number(document.querySelector('#listingPrice')?.value || 0);
+  const condition=document.querySelector('#listingCondition')?.value;
+  const city=document.querySelector('#listingCity')?.value.trim();
+  const district=document.querySelector('#listingDistrict')?.value.trim();
+  const description=document.querySelector('#listingDescription')?.value.trim();
 
-      return;
-    }
+  const files=Array.from(
+    document.querySelector('#listingPhotos')?.files || []
+  );
 
-    const title =
-      document
-        .querySelector(
-          '#listingTitle'
-        )
-        ?.value
-        .trim();
+  if (!title || !category || !price) {
+    msg.textContent='Başlık, kategori ve fiyat zorunludur.';
+    return;
+  }
 
-    const category =
-      document
-        .querySelector(
-          '#listingCategory'
-        )
-        ?.value;
+  msg.textContent='İlan yayınlanıyor...';
 
-    const price =
-      Number(
-        document
-          .querySelector(
-            '#listingPrice'
-          )
-          ?.value || 0
-      );
+  const {data:listing,error}=await supabase
+    .from('listings')
+    .insert({
+      user_id:currentUser.id,
+      title,
+      category,
+      price,
+      condition,
+      city,
+      district,
+      description,
+      status:'active'
+    })
+    .select()
+    .single();
 
-    const condition =
-      document
-        .querySelector(
-          '#listingCondition'
-        )
-        ?.value;
+  if (error) {
+    msg.textContent='İlan oluşturulamadı: '+error.message;
+    return;
+  }
 
-    const city =
-      document
-        .querySelector(
-          '#listingCity'
-        )
-        ?.value
-        .trim();
+  for (let i=0;i<files.length;i++) {
+    const file=files[i];
+    const ext=file.name.split('.').pop() || 'jpg';
 
-    const district =
-      document
-        .querySelector(
-          '#listingDistrict'
-        )
-        ?.value
-        .trim();
+    const path=
+      `${currentUser.id}/${listing.id}/${Date.now()}-${i}.${ext}`;
 
-    const description =
-      document
-        .querySelector(
-          '#listingDescription'
-        )
-        ?.value
-        .trim();
+    const {error:uploadError}=await supabase
+      .storage
+      .from('listing-images')
+      .upload(path,file);
 
-    const files =
-      Array.from(
-        document
-          .querySelector(
-            '#listingPhotos'
-          )
-          ?.files || []
-      );
+    if (uploadError) continue;
 
-    const msg =
-      document
-        .querySelector(
-          '#listingMsg'
-        );
+    const {data:urlData}=supabase
+      .storage
+      .from('listing-images')
+      .getPublicUrl(path);
 
-    if (
-      !title ||
-      !category ||
-      !price
-    ) {
+    await supabase
+      .from('listing_images')
+      .insert({
+        listing_id:listing.id,
+        image_url:urlData.publicUrl,
+        sort_order:i
+      });
+  }
 
-      msg.textContent =
-        'Başlık, kategori ve fiyat zorunludur.';
+  await loadSession();
+  location.hash=`#/listing/${listing.id}`;
+};
 
-      return;
-    }
-
-    msg.textContent =
-      'İlan yayınlanıyor...';
-
-    const { data: listing, error } =
-      await supabase
-        .from('listings')
-        .insert({
-          user_id:
-            currentUser.id,
-
-          title,
-          category,
-          price,
-          condition,
-          city,
-          district,
-          description,
-
-          status:
-            'active'
-        })
-        .select()
-        .single();
-
-    if (error) {
-
-      msg.textContent =
-        'İlan oluşturulamadı: ' +
-        error.message;
-
-      return;
-    }
-
-    for (
-      let i = 0;
-      i < files.length;
-      i++
-    ) {
-
-      const file =
-        files[i];
-
-      const extension =
-        file.name
-          .split('.')
-          .pop() || 'jpg';
-
-      const path =
-        `${currentUser.id}/${listing.id}/${Date.now()}-${i}.${extension}`;
-
-      const {
-        error: uploadError
-      } =
-        await supabase
-          .storage
-          .from(
-            'listing-images'
-          )
-          .upload(
-            path,
-            file
-          );
-
-      if (uploadError) {
-        console.error(
-          uploadError
-        );
-
-        continue;
-      }
-
-      const { data: urlData } =
-        supabase
-          .storage
-          .from(
-            'listing-images'
-          )
-          .getPublicUrl(
-            path
-          );
-
-      await supabase
-        .from(
-          'listing_images'
-        )
-        .insert({
-          listing_id:
-            listing.id,
-
-          image_url:
-            urlData.publicUrl,
-
-          sort_order:
-            i
-        });
-    }
-
-    await loadSession();
-
-    location.hash =
-      `#/listing/${listing.id}`;
-  };
-
-/* ------------------------------------------------
+/* =========================================================
    FAVORİLER
------------------------------------------------- */
+========================================================= */
 
 async function favoritesPage() {
   if (!currentUser) {
-    location.hash =
-      '#/login';
-
+    location.hash='#/login';
     return '';
   }
 
-  const { data: favorites } =
-    await supabase
-      .from('favorites')
-      .select(
-        'listing_id'
-      )
-      .eq(
-        'user_id',
-        currentUser.id
-      );
+  const {data:favs}=await supabase
+    .from('favorites')
+    .select('listing_id')
+    .eq('user_id',currentUser.id);
 
-  const ids =
-    (favorites || [])
-      .map(
-        item =>
-          item.listing_id
-      );
+  const ids=(favs || []).map(x=>x.listing_id);
 
   if (!ids.length) {
     return shell(`
       <section>
-
-        <div class="sectionHead">
-          <h1>Favorilerim</h1>
-        </div>
-
-        <div class="empty">
-          Henüz favori ilanınız yok.
-        </div>
-
+        <h1>Favorilerim</h1>
+        <div class="empty">Henüz favori ilanınız yok.</div>
       </section>
     `);
   }
 
-  const { data } =
-    await supabase
-      .from('listings')
-      .select('*')
-      .in('id', ids)
-      .eq(
-        'status',
-        'active'
-      );
+  const {data}=await supabase
+    .from('listings')
+    .select('*')
+    .in('id',ids)
+    .eq('status','active');
 
-  const listings =
-    await addFirstImages(
-      data || []
-    );
+  const listings=await addFirstImages(data || []);
 
   return shell(`
     <section>
-
       <div class="sectionHead">
-
-        <h1>
-          Favorilerim
-        </h1>
-
-        <span>
-          ${listings.length}
-          ilan
-        </span>
-
+        <h1>Favorilerim</h1>
+        <span>${listings.length} ilan</span>
       </div>
 
       <div class="grid">
-
-        ${
-          listings.length
-            ? listings
-                .map(card)
-                .join('')
-            : `
-              <div class="empty">
-                Favori ilan bulunamadı.
-              </div>
-            `
-        }
-
+        ${listings.map(card).join('')}
       </div>
-
     </section>
   `);
 }
 
-/* ------------------------------------------------
+/* =========================================================
    MESAJLAR
------------------------------------------------- */
+========================================================= */
 
 async function messagesPage() {
   if (!currentUser) {
-    location.hash =
-      '#/login';
-
+    location.hash='#/login';
     return '';
   }
 
-  const { data, error } =
-    await supabase
-      .from('messages')
-      .select('*')
-      .or(
-        `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
-      )
-      .order(
-        'created_at',
-        {
-          ascending: false
-        }
-      );
+  const {data,error}=await supabase
+    .from('messages')
+    .select('*')
+    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
+    .order('created_at',{ascending:false});
 
   if (error) {
-    return shell(`
-      <section>
-        <div class="empty">
-          Mesajlar yüklenemedi.
-        </div>
-      </section>
-    `);
+    return shell(`<div class="empty">Mesajlar yüklenemedi.</div>`);
   }
 
-  const groups =
-    new Map();
+  const groups=new Map();
 
-  for (
-    const message of
-    data || []
-  ) {
-
-    const otherUserId =
-      message.sender_id ===
-      currentUser.id
+  for (const message of data || []) {
+    const other=
+      message.sender_id===currentUser.id
         ? message.receiver_id
         : message.sender_id;
 
-    const key =
-      `${message.listing_id}:${otherUserId}`;
+    const key=`${message.listing_id}:${other}`;
 
     if (!groups.has(key)) {
-      groups.set(
-        key,
-        {
-          ...message,
-          otherUserId
-        }
-      );
+      groups.set(key,{...message,otherUserId:other});
     }
   }
 
-  const conversations = [];
+  const conversations=[];
 
-  for (
-    const item of
-    groups.values()
-  ) {
+  for (const item of groups.values()) {
+    const {data:profile}=await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id',item.otherUserId)
+      .maybeSingle();
 
-    let name =
-      'PazarElden kullanıcısı';
-
-    let title =
-      'İlan';
-
-    const { data: profile } =
-      await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq(
-          'id',
-          item.otherUserId
-        )
-        .maybeSingle();
-
-    if (profile?.full_name) {
-      name =
-        profile.full_name;
-    }
-
-    const { data: listing } =
-      await supabase
-        .from('listings')
-        .select('title')
-        .eq(
-          'id',
-          item.listing_id
-        )
-        .maybeSingle();
-
-    if (listing?.title) {
-      title =
-        listing.title;
-    }
+    const {data:listing}=await supabase
+      .from('listings')
+      .select('title')
+      .eq('id',item.listing_id)
+      .maybeSingle();
 
     conversations.push({
       ...item,
-      name,
-      title
+      name:profile?.full_name || 'PazarElden kullanıcısı',
+      title:listing?.title || 'İlan'
     });
   }
 
   return shell(`
     <section>
-
-      <div class="sectionHead">
-        <h1>Mesajlarım</h1>
-      </div>
+      <h1>Mesajlarım</h1>
 
       ${
         conversations.length
-          ? conversations.map(
-              item => `
-                <a
-                  class="panel"
-                  style="
-                    display:block;
-                    margin:12px auto;
-                  "
-                  href="#/conversation/${item.listing_id}/${item.otherUserId}"
-                >
-
-                  <b>
-                    ${safe(item.name)}
-                  </b>
-
-                  <p>
-                    ${safe(item.title)}
-                  </p>
-
-                  <p>
-                    ${safe(item.content || '')}
-                  </p>
-
-                  <small>
-                    ${dateText(item.created_at)}
-                  </small>
-
-                </a>
-              `
-            ).join('')
-          : `
-            <div class="empty">
-              Henüz mesajınız yok.
-            </div>
-          `
+          ? conversations.map(x=>`
+              <a
+                class="panel"
+                style="display:block;margin:12px auto"
+                href="#/conversation/${x.listing_id}/${x.otherUserId}"
+              >
+                <b>${safe(x.name)}</b>
+                <p>${safe(x.title)}</p>
+                <p>${safe(x.content || '')}</p>
+                <small>${dateText(x.created_at)}</small>
+              </a>
+            `).join('')
+          : `<div class="empty">Henüz mesajınız yok.</div>`
       }
-
     </section>
   `);
 }
 
-/* ------------------------------------------------
-   MESAJ BAŞLAT
------------------------------------------------- */
-
-window.startConversation =
-  (
-    listingId,
-    sellerId
-  ) => {
-
-    if (!currentUser) {
-      location.hash =
-        '#/login';
-
-      return;
-    }
-
-    if (
-      currentUser.id ===
-      sellerId
-    ) {
-      alert(
-        'Kendi ilanınıza mesaj gönderemezsiniz.'
-      );
-
-      return;
-    }
-
-    location.hash =
-      `#/conversation/${listingId}/${sellerId}`;
-  };
-
-/* ------------------------------------------------
-   MESAJLAŞMA
------------------------------------------------- */
-
-async function conversationPage(
-  listingId,
-  otherUserId
-) {
-
+window.startConversation=(listingId,sellerId)=>{
   if (!currentUser) {
-    location.hash =
-      '#/login';
+    location.hash='#/login';
+    return;
+  }
 
+  location.hash=`#/conversation/${listingId}/${sellerId}`;
+};
+
+async function conversationPage(listingId,otherUserId) {
+  if (!currentUser) {
+    location.hash='#/login';
     return '';
   }
 
-  const { data: listing } =
-    await supabase
-      .from('listings')
-      .select(
-        'title,user_id'
-      )
-      .eq(
-        'id',
-        listingId
-      )
-      .maybeSingle();
+  const {data:listing}=await supabase
+    .from('listings')
+    .select('title')
+    .eq('id',listingId)
+    .maybeSingle();
 
-  const { data: profile } =
-    await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq(
-        'id',
-        otherUserId
-      )
-      .maybeSingle();
+  const {data:profile}=await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id',otherUserId)
+    .maybeSingle();
 
-  const { data: messages } =
-    await supabase
-      .from('messages')
-      .select('*')
-      .eq(
-        'listing_id',
-        listingId
-      )
-      .or(
-        `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`
-      )
-      .order(
-        'created_at',
-        {
-          ascending: true
-        }
-      );
+  const {data:messages}=await supabase
+    .from('messages')
+    .select('*')
+    .eq('listing_id',listingId)
+    .or(
+      `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`
+    )
+    .order('created_at',{ascending:true});
 
   await supabase
     .from('messages')
-    .update({
-      is_read: true
-    })
-    .eq(
-      'listing_id',
-      listingId
-    )
-    .eq(
-      'receiver_id',
-      currentUser.id
-    )
-    .eq(
-      'sender_id',
-      otherUserId
-    );
-
-  const otherName =
-    profile?.full_name ||
-    'PazarElden kullanıcısı';
+    .update({is_read:true})
+    .eq('listing_id',listingId)
+    .eq('receiver_id',currentUser.id)
+    .eq('sender_id',otherUserId);
 
   return shell(`
     <section>
-
       <div class="panel">
+        <h1>${safe(profile?.full_name || 'PazarElden kullanıcısı')}</h1>
+        <p><b>İlan:</b> ${safe(listing?.title || 'İlan')}</p>
 
-        <h1>
-          ${safe(otherName)}
-        </h1>
-
-        <p>
-          <b>İlan:</b>
-          ${safe(listing?.title || 'İlan')}
-        </p>
-
-        <div
-          style="
-            display:flex;
-            flex-direction:column;
-            gap:10px;
-            margin:20px 0;
-          "
-        >
-
+        <div style="display:flex;flex-direction:column;gap:10px;margin:20px 0">
           ${
             messages?.length
-              ? messages.map(
-                  message => {
-
-                    const mine =
-                      message.sender_id ===
-                      currentUser.id;
-
-                    return `
-                      <div
-                        style="
-                          max-width:80%;
-                          padding:10px 12px;
-                          border-radius:10px;
-                          ${
-                            mine
-                              ? 'margin-left:auto;background:#e7f7f7;'
-                              : 'margin-right:auto;background:#f0f2f5;'
-                          }
-                        "
-                      >
-
-                        <div>
-                          ${safe(message.content || '')}
-                        </div>
-
-                        <small>
-                          ${dateText(message.created_at)}
-                        </small>
-
-                      </div>
-                    `;
-                  }
-                ).join('')
-              : `
-                <div class="empty">
-                  Henüz mesaj yok.
-                </div>
-              `
+              ? messages.map(m=>`
+                  <div style="
+                    max-width:80%;
+                    padding:10px;
+                    border-radius:10px;
+                    ${
+                      m.sender_id===currentUser.id
+                        ? 'margin-left:auto;background:#e7f7f7'
+                        : 'margin-right:auto;background:#f0f2f5'
+                    }
+                  ">
+                    ${safe(m.content || '')}
+                    <br>
+                    <small>${dateText(m.created_at)}</small>
+                  </div>
+                `).join('')
+              : `<div class="empty">Henüz mesaj yok.</div>`
           }
-
         </div>
 
-        <textarea
-          id="messageText"
-          placeholder="Mesajınızı yazın..."
-        ></textarea>
+        <textarea id="messageText" placeholder="Mesajınızı yazın..."></textarea>
 
-        <button
-          class="wide"
-          onclick="sendMessage('${listingId}','${otherUserId}')"
-        >
+        <button onclick="sendMessage('${listingId}','${otherUserId}')">
           Mesaj Gönder
         </button>
 
         <p id="messageMsg"></p>
+      </div>
+    </section>
+  `);
+}
 
+window.sendMessage=async(listingId,receiverId)=>{
+  const input=document.querySelector('#messageText');
+  const content=input?.value.trim();
+
+  if (!content) return;
+
+  const {error}=await supabase
+    .from('messages')
+    .insert({
+      sender_id:currentUser.id,
+      receiver_id:receiverId,
+      listing_id:listingId,
+      content,
+      is_read:false
+    });
+
+  if (error) {
+    alert('Mesaj gönderilemedi: '+error.message);
+    return;
+  }
+
+  input.value='';
+  await render();
+};
+
+/* =========================================================
+   YÖNETİCİ PANELİ
+========================================================= */
+
+async function adminPage() {
+  if (!currentUser || !isAdmin()) {
+    return shell(`
+      <section>
+        <div class="empty">
+          Bu sayfaya erişim yetkiniz yok.
+        </div>
+      </section>
+    `);
+  }
+
+  const {count:userCount}=await supabase
+    .from('profiles')
+    .select('id',{count:'exact',head:true});
+
+  const {count:activeCount}=await supabase
+    .from('listings')
+    .select('id',{count:'exact',head:true})
+    .eq('status','active');
+
+  const {count:soldCount}=await supabase
+    .from('listings')
+    .select('id',{count:'exact',head:true})
+    .eq('status','sold');
+
+  const {count:inactiveCount}=await supabase
+    .from('listings')
+    .select('id',{count:'exact',head:true})
+    .eq('status','inactive');
+
+  const {data:listings}=await supabase
+    .from('listings')
+    .select('*')
+    .neq('status','deleted')
+    .order('created_at',{ascending:false})
+    .limit(100);
+
+  const {data:profiles}=await supabase
+    .from('profiles')
+    .select('id,full_name,is_admin')
+    .limit(100);
+
+  const profileMap={};
+
+  for (const p of profiles || []) {
+    profileMap[p.id]=p;
+  }
+
+  return shell(`
+    <section>
+
+      <div class="adminTitle">
+        <h1>👑 PazarElden Yönetici Paneli</h1>
+        ${rankBadge(currentActiveListingCount,true)}
+      </div>
+
+      <p>
+        PazarElden yönetim ve kontrol merkezi.
+      </p>
+
+      <div class="adminStats">
+
+        <div class="adminStat">
+          <span>Toplam Üye</span>
+          <strong>${userCount || 0}</strong>
+        </div>
+
+        <div class="adminStat">
+          <span>Aktif İlan</span>
+          <strong>${activeCount || 0}</strong>
+        </div>
+
+        <div class="adminStat">
+          <span>Satılan İlan</span>
+          <strong>${soldCount || 0}</strong>
+        </div>
+
+        <div class="adminStat">
+          <span>Yayından Kaldırılan</span>
+          <strong>${inactiveCount || 0}</strong>
+        </div>
+
+      </div>
+
+      <div class="panel" style="width:100%;max-width:none">
+        <h2>📋 İlan Yönetimi</h2>
+
+        ${
+          listings?.length
+            ? `
+              <table class="adminTable">
+                <thead>
+                  <tr>
+                    <th>İlan</th>
+                    <th>Satıcı</th>
+                    <th>Fiyat</th>
+                    <th>Durum</th>
+                    <th>İşlem</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${listings.map(x=>{
+                    const p=profileMap[x.user_id];
+
+                    return `
+                      <tr>
+                        <td>
+                          <a href="#/listing/${x.id}">
+                            ${safe(x.title)}
+                          </a>
+                        </td>
+
+                        <td>
+                          ${safe(p?.full_name || 'Kullanıcı')}
+                          ${p?.is_admin ? ' 👑' : ''}
+                        </td>
+
+                        <td>${money(x.price)}</td>
+
+                        <td>
+                          <span class="statusBadge">
+                            ${safe(x.status)}
+                          </span>
+                        </td>
+
+                        <td>
+                          <a href="#/edit/${x.id}">
+                            ✏️ Düzenle
+                          </a>
+                        </td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            `
+            : `<div class="empty">İlan bulunmuyor.</div>`
+        }
+      </div>
+
+      <div class="panel" style="width:100%;max-width:none;margin-top:20px">
+        <h2>👥 Üyeler</h2>
+
+        ${
+          profiles?.length
+            ? `
+              <table class="adminTable">
+                <thead>
+                  <tr>
+                    <th>Profil Adı</th>
+                    <th>Yetki</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  ${profiles.map(p=>`
+                    <tr>
+                      <td>
+                        ${safe(p.full_name || 'Profil adı belirlenmemiş')}
+                      </td>
+
+                      <td>
+                        ${
+                          p.is_admin
+                            ? '👑 Yönetici'
+                            : '👤 Üye'
+                        }
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            `
+            : `<div class="empty">Üye bulunmuyor.</div>`
+        }
       </div>
 
     </section>
   `);
 }
 
-window.sendMessage =
-  async (
-    listingId,
-    receiverId
-  ) => {
-
-    if (!currentUser) return;
-
-    const input =
-      document
-        .querySelector(
-          '#messageText'
-        );
-
-    const msg =
-      document
-        .querySelector(
-          '#messageMsg'
-        );
-
-    const content =
-      input?.value
-        .trim();
-
-    if (!content) {
-
-      if (msg) {
-        msg.textContent =
-          'Mesajınızı yazın.';
-      }
-
-      return;
-    }
-
-    const { error } =
-      await supabase
-        .from('messages')
-        .insert({
-          sender_id:
-            currentUser.id,
-
-          receiver_id:
-            receiverId,
-
-          listing_id:
-            listingId,
-
-          content,
-
-          is_read:
-            false
-        });
-
-    if (error) {
-
-      if (msg) {
-        msg.textContent =
-          'Mesaj gönderilemedi: ' +
-          error.message;
-      }
-
-      return;
-    }
-
-    if (input) {
-      input.value = '';
-    }
-
-    await render();
-  };
-
-/* ------------------------------------------------
+/* =========================================================
    ROUTER
------------------------------------------------- */
+========================================================= */
 
 async function render() {
-  const app =
-    document
-      .querySelector('#app');
+  const app=document.querySelector('#app');
 
   if (!app) return;
 
   await loadSession();
 
-  const hash =
-    location.hash || '#/';
+  const hash=location.hash || '#/';
+  const route=hash.replace(/^#/,'').split('?')[0];
 
-  const route =
-    hash
-      .replace(/^#/, '')
-      .split('?')[0];
-
-  if (
-    route === '/' ||
-    route === ''
-  ) {
-
-    app.innerHTML =
-      await home();
-
+  if (route==='/' || route==='') {
+    app.innerHTML=await home();
     return;
   }
 
-  if (route === '/login') {
-
-    app.innerHTML =
-      auth('login');
-
+  if (route==='/login') {
+    app.innerHTML=auth('login');
     return;
   }
 
-  if (route === '/signup') {
-
-    app.innerHTML =
-      auth('signup');
-
+  if (route==='/signup') {
+    app.innerHTML=auth('signup');
     return;
   }
 
-  if (
-    route === '/ilan-ver' ||
-    route === '/new'
-  ) {
-
-    app.innerHTML =
-      newListingPage();
-
+  if (route==='/ilan-ver' || route==='/new') {
+    app.innerHTML=newListingPage();
     return;
   }
 
-  if (route === '/profile') {
-
-    app.innerHTML =
-      await profilePage();
-
+  if (route==='/profile') {
+    app.innerHTML=await profilePage();
     return;
   }
 
-  if (route === '/favorites') {
-
-    app.innerHTML =
-      await favoritesPage();
-
+  if (route==='/favorites') {
+    app.innerHTML=await favoritesPage();
     return;
   }
 
-  if (route === '/messages') {
-
-    app.innerHTML =
-      await messagesPage();
-
+  if (route==='/messages') {
+    app.innerHTML=await messagesPage();
     return;
   }
 
-  if (route === '/search') {
-
-    app.innerHTML =
-      await searchPage();
-
+  if (route==='/search') {
+    app.innerHTML=await searchPage();
     return;
   }
 
-  if (
-    route.startsWith(
-      '/category/'
-    )
-  ) {
-
-    const category =
-      decodeURIComponent(
-        route.replace(
-          '/category/',
-          ''
-        )
-      );
-
-    app.innerHTML =
-      await categoryPage(
-        category
-      );
-
+  if (route==='/admin') {
+    app.innerHTML=await adminPage();
     return;
   }
 
-  if (
-    route.startsWith(
-      '/listing/'
-    )
-  ) {
-
-    const id =
-      route.replace(
-        '/listing/',
-        ''
-      );
-
-    app.innerHTML =
-      await listingDetail(
-        id
-      );
-
+  if (route.startsWith('/edit/')) {
+    const id=route.replace('/edit/','');
+    app.innerHTML=await editListingPage(id);
     return;
   }
 
-  if (
-    route.startsWith(
-      '/conversation/'
-    )
-  ) {
-
-    const parts =
-      route
-        .replace(
-          '/conversation/',
-          ''
-        )
-        .split('/');
-
-    app.innerHTML =
-      await conversationPage(
-        parts[0],
-        parts[1]
-      );
-
-    return;
-  }
-
-  app.innerHTML =
-    shell(`
-      <section>
-        <div class="empty">
-          Sayfa bulunamadı.
-        </div>
-      </section>
-    `);
-}
-
-/* ------------------------------------------------
-   BAŞLAT
------------------------------------------------- */
-
-if (supabase) {
-
-  supabase.auth
-    .onAuthStateChange(
-      async () => {
-        await loadSession();
-      }
+  if (route.startsWith('/category/')) {
+    const category=decodeURIComponent(
+      route.replace('/category/','')
     );
+
+    app.innerHTML=await categoryPage(category);
+    return;
+  }
+
+  if (route.startsWith('/listing/')) {
+    const id=route.replace('/listing/','');
+
+    app.innerHTML=await listingDetail(id);
+    return;
+  }
+
+  if (route.startsWith('/conversation/')) {
+    const parts=route
+      .replace('/conversation/','')
+      .split('/');
+
+    app.innerHTML=await conversationPage(
+      parts[0],
+      parts[1]
+    );
+
+    return;
+  }
+
+  app.innerHTML=shell(`
+    <section>
+      <div class="empty">
+        Sayfa bulunamadı.
+      </div>
+    </section>
+  `);
 }
 
-window.addEventListener(
-  'hashchange',
-  render
-);
+/* =========================================================
+   BAŞLAT
+========================================================= */
+
+window.addEventListener('hashchange',render);
 
 render();
