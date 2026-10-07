@@ -1221,6 +1221,7 @@ window.reportListing =
             listing_id: listingId,
             reported_user_id: sellerId,
             reason: reason.trim(),
+            details: reason.trim(),
             status: 'open'
           })
     );
@@ -1244,7 +1245,7 @@ window.pauseListing =
     await supabase
       .from('listings')
       .update({
-        status: 'paused'
+        status: 'inactive'
       })
       .eq('id', id)
       .eq('user_id', currentUser.id);
@@ -1262,7 +1263,9 @@ window.resumeListing =
     await supabase
       .from('listings')
       .update({
-        status: 'active'
+        status: 'pending',
+        moderation_status: 'pending',
+        submitted_at: new Date().toISOString()
       })
       .eq('id', id)
       .eq('user_id', currentUser.id);
@@ -1448,14 +1451,9 @@ function newListing() {
       </small>
 
 
-      <label>
-        <input
-          id="premiumListing"
-          type="checkbox"
-        >
-
-        💎 Premium ilan olarak öne çıkar
-      </label>
+      <div class="premiumListingNote">
+        💎 Premium üyeliğiniz aktifse ilanınız onaylandıktan sonra Premium avantajları otomatik uygulanır.
+      </div>
 
 
       <label>
@@ -1638,11 +1636,6 @@ window.publishListing =
       document.querySelector('#terms')
         ?.checked;
 
-    const premium =
-      document.querySelector('#premiumListing')
-        ?.checked;
-
-
     if (!terms) {
 
       msg.textContent =
@@ -1772,10 +1765,7 @@ window.publishListing =
             delivery || null,
 
           status:
-            'pending',
-
-          is_premium:
-            premium === true
+            'pending'
 
         })
         .select('*')
@@ -2490,7 +2480,7 @@ async function notificationsPage() {
                     </b>
 
                     <p>
-                      ${safe(n.message || '')}
+                      ${safe(n.content || '')}
                     </p>
 
                     <small>
@@ -2594,50 +2584,13 @@ window.startPremium =
   async () => {
 
     if (!currentUser) {
-
-      location.hash =
-        '#/login';
-
+      location.hash = '#/login';
       return;
     }
-
-
-    const until =
-      new Date(
-        Date.now() +
-        30 * 24 * 60 * 60 * 1000
-      ).toISOString();
-
-
-    const { error } =
-      await supabase
-        .from('profiles')
-        .update({
-          premium_until: until
-        })
-        .eq(
-          'id',
-          currentUser.id
-        );
-
-
-    if (error) {
-
-      alert(
-        'Premium işlemi için ödeme sistemi henüz bağlanmadı.'
-      );
-
-      return;
-    }
-
 
     alert(
-      'Premium üyelik aktif edildi.'
+      'Premium ödeme sistemi hazırlanıyor. Ödeme doğrulaması tamamlanmadan Premium üyelik aktif edilmez.'
     );
-
-    await loadSession();
-
-    await render();
 
   };
 
@@ -3423,15 +3376,15 @@ async function adminPage() {
 window.approveListing =
   async id => {
 
-    await supabase
-      .from('listings')
-      .update({
-        status: 'active'
-      })
-      .eq(
-        'id',
-        id
-      );
+    const { error } = await supabase.rpc(
+      'approve_listing',
+      { p_listing_id: id }
+    );
+
+    if (error) {
+      alert('İlan onaylanamadı: ' + error.message);
+      return;
+    }
 
     await render();
 
@@ -3441,15 +3394,21 @@ window.approveListing =
 window.rejectListing =
   async id => {
 
-    await supabase
-      .from('listings')
-      .update({
-        status: 'rejected'
-      })
-      .eq(
-        'id',
-        id
-      );
+    const reason = prompt('Reddetme nedenini yazın:');
+    if (!reason?.trim()) return;
+
+    const { error } = await supabase.rpc(
+      'reject_listing',
+      {
+        p_listing_id: id,
+        p_reason: reason.trim()
+      }
+    );
+
+    if (error) {
+      alert('İlan reddedilemedi: ' + error.message);
+      return;
+    }
 
     await render();
 
@@ -3551,7 +3510,7 @@ async function render() {
 
 
   } else if (
-    path === '/messages'
+    path.startsWith('/messages')
   ) {
 
     html =
