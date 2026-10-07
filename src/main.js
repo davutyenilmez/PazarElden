@@ -1003,11 +1003,16 @@ async function listing(id) {
                   ▶️ Yeniden Aktifleştir
                 </button>
 
+                <button
+                  class="dangerBtn"
+                  onclick="deleteListing('${x.id}')"
+                >
+                  🗑️ İlanı Sil
+                </button>
+
                 <p>
-                  İlan silinmez.
-                  Yayından kaldırıldığında
-                  kaldığı yerden tekrar aktif
-                  edilebilir.
+                  Yayından kaldırılan ilan tekrar moderasyona gönderilebilir.
+                  Silme işlemi ilanı sistemde silinmiş olarak işaretler.
                 </p>
 
               </div>
@@ -1271,6 +1276,40 @@ window.resumeListing =
       .eq('user_id', currentUser.id);
 
     await render();
+
+  };
+
+
+window.deleteListing =
+  async id => {
+
+    if (!currentUser) return;
+
+    const allowed =
+      currentProfile?.is_admin === true ||
+      currentProfile?.role === 'admin';
+
+    if (!allowed) {
+      alert('Bu işlem yalnızca yönetici tarafından yapılabilir.');
+      return;
+    }
+
+    if (!confirm('Bu ilanı silmek istediğinize emin misiniz?')) return;
+
+    const { error } = await supabase
+      .from('listings')
+      .update({
+        status: 'deleted'
+      })
+      .eq('id', id);
+
+    if (error) {
+      alert('İlan silinemedi: ' + error.message);
+      return;
+    }
+
+    alert('İlan silindi.');
+    location.hash = '#/profile';
 
   };
 
@@ -2235,10 +2274,6 @@ async function profilePage() {
               `
               : ''
           }
-
-          <p>
-            PazarElden üyesi
-          </p>
 
         </div>
 
