@@ -321,24 +321,12 @@ function shell(content) {
       </div>
 
       <nav>
-
-        <a href="#/favorites">
-          ♡ Favorilerim
-        </a>
-
-        <a href="#/following">
-          🔔 Takiplerim
-        </a>
-
-        <a href="#/messages">
-          💬 Mesajlar
-          <span id="messageBadge"></span>
-        </a>
-
-        <a href="#/notifications">
-          🔔 Bildirimler
-        </a>
-
+        ${currentUser ? `
+          <a href="#/favorites">♡ Favorilerim</a>
+          <a href="#/following">🔔 Takiplerim</a>
+          <a href="#/messages">💬 Mesajlar <span id="messageBadge"></span></a>
+          <a href="#/notifications">🔔 Bildirimler</a>
+        ` : ''}
         ${accountNav}
 
         <a
@@ -2224,104 +2212,79 @@ async function messagesPage() {
    ========================================================= */
 
 async function profilePage() {
-  if (!currentUser) {
-    location.hash = '#/login';
-    return shell('<div class="panel">Giriş yapmanız gerekiyor.</div>');
-  }
+  if (!currentUser) { location.hash='#/login'; return shell('<div class="panel">Giriş yapmanız gerekiyor.</div>'); }
 
-  const { data: mine } = await supabase
-    .from('listings')
-    .select('*, listing_images(image_url)')
-    .eq('user_id', currentUser.id)
-    .order('created_at', { ascending: false });
+  const [{ data: mine }, favRes, reviewRes] = await Promise.all([
+    supabase.from('listings').select('*, listing_images(image_url)').eq('user_id',currentUser.id).order('created_at',{ascending:false}),
+    supabase.from('favorites').select('id',{count:'exact',head:true}).eq('user_id',currentUser.id),
+    supabase.from('seller_reviews').select('rating').eq('seller_id',currentUser.id)
+  ]);
+  const p=currentProfile||{}, mineRows=mine||[], reviews=reviewRes.data||[];
+  const activeMine=mineRows.filter(x=>x.status==='active').length, soldMine=mineRows.filter(x=>x.status==='sold').length;
+  const avgRating=reviews.length?(reviews.reduce((a,r)=>a+Number(r.rating||0),0)/reviews.length).toFixed(1):'—';
+  let reward={points:0,qualified_referrals:0,shares_this_month:0};
+  const [rewardResult,codeResult,visitResult]=await Promise.all([
+    safeTable('reward_points',()=>supabase.rpc('my_reward_summary')),
+    supabase.rpc('ensure_my_referral_code'),
+    supabase.rpc('my_profile_visit_stats')
+  ]);
+  if(rewardResult?.data?.[0]) reward=rewardResult.data[0];
+  const inviteCode=codeResult.data||'', inviteLink=location.origin+location.pathname+'#/signup?ref='+inviteCode;
+  const myVisits=visitResult.data?.[0]||{member_visits:0,guest_visits:0};
+  const joined=p.created_at?new Date(p.created_at).toLocaleDateString('tr-TR',{month:'long',year:'numeric'}):'';
+  const avatar=p.avatar_url?'<img src="'+safe(p.avatar_url)+'" alt="Profil fotoğrafı">':(p.is_admin?'👑':'👤');
+  const latest=mineRows.slice(0,4);
 
-  const p = currentProfile || {};
-  const mineRows = mine || [];
-  const activeMine = mineRows.filter(x => x.status === 'active').length;
-  const soldMine = mineRows.filter(x => x.status === 'sold').length;
-  const { count: favoriteCount } = await supabase.from('favorites').select('id',{count:'exact',head:true}).eq('user_id',currentUser.id);
-  const { data: reviewRows } = await supabase.from('seller_reviews').select('rating').eq('seller_id',currentUser.id);
-  const reviewCount = reviewRows?.length || 0;
-  const avgRating = reviewCount ? (reviewRows.reduce((a,r)=>a+Number(r.rating||0),0)/reviewCount).toFixed(1) : '—';
-  let reward = { points: 0, qualified_referrals: 0, shares_this_month: 0 };
-  const rewardResult = await safeTable('reward_points', () => supabase.rpc('my_reward_summary'));
-  if (rewardResult?.data?.[0]) reward = rewardResult.data[0];
+  return shell(`
+    <section class="profileWorkspace">
+      <aside class="profileSideNav">
+        <a class="active" href="#/profile">⌂ <span>Genel Bakış</span></a>
+        <a href="#profileListings">▣ <span>İlanlarım</span></a>
+        <a href="#/messages">💬 <span>Mesajlarım</span></a>
+        <a href="#/favorites">♡ <span>Favorilerim</span></a>
+        <a href="#/following">♧ <span>Takiplerim</span></a>
+        <a href="#rewardCenter">🎁 <span>Ödül Merkezi</span></a>
+        <a href="#/premium">💎 <span>Premium Üyelik</span></a>
+        <button onclick="toggleProfileEditor()">⚙ <span>Hesap Ayarları</span></button>
+        ${p.is_admin?'<a class="adminSideLink" href="#/admin">👑 <span>Yönetim Merkezi</span></a>':''}
+      </aside>
 
-  const { data: inviteCodeData } = await supabase.rpc('ensure_my_referral_code');
-  const inviteCode = inviteCodeData || '';
-  const inviteLink = location.origin + location.pathname + '#/signup?ref=' + inviteCode;
-  const { data: myVisitRows } = await supabase.rpc('my_profile_visit_stats');
-  const myVisits = myVisitRows?.[0] || { member_visits: 0, guest_visits: 0 };
+      <div class="profileWorkspaceMain">
+        <div class="profileHero panel ${p.is_admin?'adminProfileHero':''}">
+          <div class="profileAvatar ${p.is_admin?'adminAvatar':''}">${avatar}</div>
+          <div class="profileIdentity">
+            <div class="profileNameRow"><h1>${safe(userName())}</h1>${p.is_admin?'<span class="adminCrown">👑 Yönetici</span>':''}</div>
+            <div class="profileBadges">${rankBadge()}${isPremium()?'<span class="premiumMini">💎 PREMIUM</span>':''}${joined?'<span class="profileMeta">📅 Üyelik: '+safe(joined)+'</span>':''}</div>
+            ${p.city?'<div class="profileLocation">📍 '+safe(p.city)+(p.district?' / '+safe(p.district):'')+'</div>':''}
+          </div>
+          <button class="profileEditBtn" onclick="toggleProfileEditor()">⚙ Profil Düzenle</button>
+        </div>
 
-  const joined = p.created_at
-    ? new Date(p.created_at).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
-    : '';
-  const avatar = p.avatar_url
-    ? '<img src="' + safe(p.avatar_url) + '" alt="Profil fotoğrafı">'
-    : (p.is_admin ? '👑' : '👤');
+        <div id="profileEditor" class="panel profileEditor" hidden>
+          <h3>Profilini Düzenle</h3>
+          <textarea id="profileAbout" maxlength="500" placeholder="Kendinizi kısaca tanıtın...">${safe(p.about_me||'')}</textarea>
+          <div class="profileEditGrid"><input id="profileCity" maxlength="80" placeholder="Şehir" value="${safe(p.city||'')}"><input id="profileDistrict" maxlength="80" placeholder="İlçe" value="${safe(p.district||'')}"><input id="profileAvatarUrl" maxlength="1000" placeholder="Profil fotoğrafı bağlantısı" value="${safe(p.avatar_url||'')}"></div>
+          <small>Telefon ve e-posta herkese açık profilde gösterilmez.</small><button onclick="savePublicProfile()">Değişiklikleri Kaydet</button>
+        </div>
 
-  return shell(
-    '<section class="memberProfile">' +
-      '<div class="profileHero panel ' + (p.is_admin ? 'adminProfileHero' : '') + '">' +
-        '<div class="profileAvatar ' + (p.is_admin ? 'adminAvatar' : '') + '">' + avatar + '</div>' +
-        '<div class="profileIdentity">' +
-          '<div class="profileNameRow"><h1>' + safe(userName()) + '</h1>' +
-            (p.is_admin ? '<span class="adminCrown">👑 Yönetici</span>' : '') +
-          '</div>' +
-          '<div class="profileBadges">' + rankBadge() +
-            (isPremium() ? '<span class="premiumMini">💎 PREMIUM</span>' : '') +
-            (joined ? '<span class="profileMeta">📅 Üyelik: ' + safe(joined) + '</span>' : '') +
-          '</div>' +
-          (p.city ? '<div class="profileLocation">📍 ' + safe(p.city) + (p.district ? ' / ' + safe(p.district) : '') + '</div>' : '') +
-        '</div>' +
-        '<button class="profileEditBtn" onclick="toggleProfileEditor()">⚙️ Profil Düzenle</button>' +
-      '</div>' +
-
-      '<div id="profileEditor" class="panel profileEditor" hidden>' +
-        '<h3>Profilini Düzenle</h3>' +
-        '<textarea id="profileAbout" maxlength="500" placeholder="Kendinizi kısaca tanıtın...">' + safe(p.about_me || '') + '</textarea>' +
-        '<div class="profileEditGrid">' +
-          '<input id="profileCity" maxlength="80" placeholder="Şehir" value="' + safe(p.city || '') + '">' +
-          '<input id="profileDistrict" maxlength="80" placeholder="İlçe" value="' + safe(p.district || '') + '">' +
-          '<input id="profileAvatarUrl" maxlength="1000" placeholder="Profil fotoğrafı bağlantısı (isteğe bağlı)" value="' + safe(p.avatar_url || '') + '">' +
-        '</div>' +
-        '<small>Bu bilgiler herkese açık profilinizde görünür. Telefon ve e-posta gösterilmez.</small>' +
-        '<button onclick="savePublicProfile()">Değişiklikleri Kaydet</button>' +
-      '</div>' +
-
-      '<div class="profileDashboardGrid">' +
-        '<div class="profileMainColumn">' +
-          '<div class="profileQuickStats">' +
-            '<div><b>' + mineRows.length + '</b><span>Toplam İlan</span></div>' +
-            '<div><b>' + activeMine + '</b><span>Aktif İlan</span></div>' +
-            '<div><b>' + soldMine + '</b><span>Satılan</span></div>' +
-            '<div><b>' + Number(favoriteCount || 0) + '</b><span>Favori</span></div>' +
-            '<div><b>⭐ ' + avgRating + '</b><span>' + reviewCount + ' Değerlendirme</span></div>' +
-          '</div>' +
-          '<div class="panel publicAbout compactAbout"><h3>Hakkımda</h3><p>' + safe(p.about_me || 'Henüz bir tanıtım yazısı eklenmemiş.') + '</p></div>' +
-        '</div>' +
-      '</div>' +
-      '<div class="panel feedbackPanel"><div><small>💬 PAZARELDEN</small><h3>Görüş ve Öneriler</h3><p>Siteyi geliştirmemize yardımcı olacak görüş ve önerilerini bize ilet.</p></div><button onclick="sendSuggestion()">Görüş ve Öneri Gönder</button></div>' +
-      '<div class="panel rewardPanel"><div class="rewardTop"><div><small>🎁 ÖDÜL MERKEZİ</small><h3>PazarElden Puanım</h3></div><strong>' + Number(reward.points || 0) + ' P</strong></div>' +
-        '<div class="rewardStats"><span>🤝 <b>' + Number(reward.qualified_referrals || 0) + '</b> başarılı davet</span><span>📢 <b>' + Number(reward.shares_this_month || 0) + '/10</b> aylık paylaşım</span><span>👥 <b>' + Number(myVisits.member_visits || 0) + '</b> benzersiz üye ziyareti</span><span>👁️ <b>' + Number(myVisits.guest_visits || 0) + '</b> misafir ziyareti</span></div><div class="inviteCodeLine">Referans Kodum: <b>' + safe(inviteCode) + '</b></div>' +
-        '<div class="inviteBox"><input id="inviteLink" readonly value="' + safe(inviteLink) + '"><button onclick="copyInviteLink()">Davet Linkini Kopyala</button></div>' +
-        '<div class="rewardButtons"><button onclick="redeemReward(50)">50 P → 1 Gün Premium</button><button onclick="redeemReward(100)">100 P → 3 Gün</button><button onclick="redeemReward(200)">200 P → 7 Gün</button></div>' +
-        '<small>Davet puanı, davet edilen üye ilk ilanını oluşturduğunda otomatik verilir.</small>' +
-      '</div>' +
-
-
-      '<div class="profileMenu">' +
-        (p.is_admin ? '<a class="adminModuleLink" href="#/admin">👑 Yönetim Merkezi</a>' : '') +
-        '<a href="#/profile">📋 İlanlarım</a>' +
-        '<a href="#/favorites">❤️ Favorilerim</a>' +
-        '<a href="#/following">🔔 Takiplerim</a>' +
-        '<a href="#/notifications">🔔 Bildirimler</a>' +
-        '<a href="#/premium">💎 Premium Üyelik</a>' +
-      '</div>' +
-      '<div class="profileSectionTitle"><h2>İlanlarım</h2><span>' + (mine?.length || 0) + '</span></div>' +
-      '<div class="grid">' + (mine?.length ? mine.map(card).join('') : '<div class="empty">Henüz ilanınız yok.</div>') + '</div>' +
-    '</section>'
-  );
+        <div class="profileOverviewGrid">
+          <div class="profileOverviewLeft">
+            <div class="profileQuickStats">
+              <div><b>📦 ${mineRows.length}</b><span>Toplam İlan</span></div><div><b>🟢 ${activeMine}</b><span>Aktif İlan</span></div><div><b>✅ ${soldMine}</b><span>Satılan</span></div><div><b>♥ ${Number(favRes.count||0)}</b><span>Favori</span></div><div><b>⭐ ${avgRating}</b><span>${reviews.length} Değerlendirme</span></div>
+            </div>
+            <div class="panel profileListingsPanel" id="profileListings"><div class="profilePanelHead"><h3>Son İlanlarım</h3><a href="#profileAllListings">Tüm İlanlarım →</a></div><div class="profileListingGrid">${latest.length?latest.map(card).join(''):'<div class="empty">Henüz ilanınız yok. <a href="#/ilan-ver">İlk ilanını ver →</a></div>'}</div></div>
+            <div class="panel compactAbout"><h3>Hakkımda</h3><p>${safe(p.about_me||'Henüz bir tanıtım yazısı eklenmemiş.')}</p></div>
+            <div class="panel feedbackPanel"><div><small>💬 PAZARELDEN</small><h3>Görüş ve Öneriler</h3><p>Siteyi geliştirmemize yardımcı ol.</p></div><button onclick="sendSuggestion()">Gönder</button></div>
+          </div>
+          <aside class="profileOverviewRight">
+            <div class="panel accountSummary"><div class="profilePanelHead"><h3>Hesap Bilgileri</h3><button onclick="toggleProfileEditor()">Düzenle</button></div><p><span>Ad Soyad</span><b>${safe(userName())}</b></p><p><span>Konum</span><b>${safe((p.city||'Belirtilmedi')+(p.district?' / '+p.district:''))}</b></p><p><span>Üyelik</span><b>${safe(joined||'—')}</b></p><p><span>Hesap Türü</span><b>${p.is_admin?'👑 Yönetici':(isPremium()?'💎 Premium':'Üye')}</b></p></div>
+            <div class="panel rewardPanel compactReward" id="rewardCenter"><div class="rewardTop"><div><small>🎁 ÖDÜL MERKEZİ</small><h3>PazarElden Puanım</h3></div><strong>${Number(reward.points||0)} P</strong></div><div class="rewardStats"><span>🤝 <b>${Number(reward.qualified_referrals||0)}</b> Davet</span><span>📢 <b>${Number(reward.shares_this_month||0)}/10</b> Paylaşım</span><span>👥 <b>${Number(myVisits.member_visits||0)}</b> Üye ziyareti</span><span>👁 <b>${Number(myVisits.guest_visits||0)}</b> Misafir</span></div><details><summary>Ödül ve davet detayları</summary><div class="inviteCodeLine">Referans Kodum: <b>${safe(inviteCode)}</b></div><div class="inviteBox"><input id="inviteLink" readonly value="${safe(inviteLink)}"><button onclick="copyInviteLink()">Kopyala</button></div><div class="rewardButtons"><button onclick="redeemReward(50)">50 P → 1 Gün</button><button onclick="redeemReward(100)">100 P → 3 Gün</button><button onclick="redeemReward(200)">200 P → 7 Gün</button></div></details></div>
+          </aside>
+        </div>
+        <div id="profileAllListings" class="profileSectionTitle"><h2>Tüm İlanlarım</h2><span>${mineRows.length}</span></div>
+        <div class="grid">${mineRows.length?mineRows.map(card).join(''):'<div class="empty">Henüz ilanınız yok.</div>'}</div>
+      </div>
+    </section>`);
 }
 
 window.sendSuggestion = async () => {
@@ -3369,7 +3332,9 @@ async function adminPage() {
   }, 0);
 
   return shell(`
-    <section class="adminMembers">
+    <section class="adminWorkspace">
+      <aside class="adminSideNav"><div class="adminSideTitle">👑 Yönetim Merkezi</div><a class="active" href="#adminOverview">⌂ Genel Bakış</a><a href="#adminNewMembers">👥 Üyeler</a><a href="#adminRoles">🔐 Rol ve Yetkiler</a><a href="#adminModeration">🛡️ İlan Moderasyonu</a><a href="#adminListings">📦 İlan Yönetimi</a><a href="#adminFeedback">💬 Görüş & Öneriler</a><a href="#adminReports">🚩 Raporlar</a><a href="#adminHistory">↶ İşlem Geçmişi</a><a href="#/">👁 Siteyi Gör</a></aside>
+      <section class="adminMembers" id="adminOverview">
       <div class="adminHeader">
         <h1>👑 Yönetim Paneli</h1>
         <p>Üyeleri, yeni kayıtları ve moderasyon işlemlerini tek yerden takip edin.</p>
@@ -3469,6 +3434,7 @@ async function adminPage() {
           </div>
         `).join('') : '<div class="empty">İlan bulunmuyor.</div>'}
       </div>
+      </section>
     </section>
   `);
 }
