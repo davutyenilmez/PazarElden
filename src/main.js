@@ -2309,7 +2309,8 @@ async function profilePage() {
       '<div class="panel rewardPanel"><div class="rewardTop"><div><small>🎁 ÖDÜL MERKEZİ</small><h3>PazarElden Puanım</h3></div><strong>' + Number(reward.points || 0) + ' P</strong></div>' +
         '<div class="rewardStats"><span>🤝 <b>' + Number(reward.qualified_referrals || 0) + '</b> başarılı davet</span><span>📢 <b>' + Number(reward.shares_this_month || 0) + '/10</b> aylık paylaşım</span></div>' +
         '<div class="inviteBox"><input id="inviteLink" readonly value="' + safe(inviteLink) + '"><button onclick="copyInviteLink()">Davet Linkini Kopyala</button></div>' +
-        '<small>50 P = 1 gün Premium • 100 P = 3 gün • 200 P = 7 gün. Davet puanı, yeni üyenin gerçek aktivitesi doğrulandıktan sonra verilir.</small>' +
+        '<div class="rewardButtons"><button onclick="redeemReward(50)">50 P → 1 Gün Premium</button><button onclick="redeemReward(100)">100 P → 3 Gün</button><button onclick="redeemReward(200)">200 P → 7 Gün</button></div>' +
+        '<small>Davet puanı, davet edilen üye ilk ilanını oluşturduğunda otomatik verilir.</small>' +
       '</div>' +
 
 
@@ -2325,6 +2326,13 @@ async function profilePage() {
     '</section>'
   );
 }
+
+window.redeemReward = async points => {
+  const { error } = await supabase.rpc('redeem_reward', { p_points: points });
+  if (error) return alert(error.message);
+  alert('🎁 Premium ödülünüz hesabınıza tanımlandı.');
+  await render();
+};
 
 window.copyInviteLink = async () => {
   const link = document.querySelector('#inviteLink')?.value;
@@ -2986,6 +2994,8 @@ function auth(kind) {
 
   const login =
     kind === 'login';
+  const authParams = new URLSearchParams((location.hash.split('?')[1] || ''));
+  const referralCode = authParams.get('ref') || '';
 
 
   return shell(`
@@ -3069,6 +3079,7 @@ function auth(kind) {
       </button>
 
 
+      ${!login && referralCode ? '<input id="referralCode" type="hidden" value="' + safe(referralCode) + '"><small>🎁 Davet bağlantısı algılandı. Üyeliğiniz davet eden kişiye bağlanacak.</small>' : ''}
       <p id="authMsg"></p>
 
     </div>
@@ -3209,11 +3220,15 @@ window.doAuth =
       }
 
 
-      document.querySelector(
-        '#authMsg'
-      ).textContent =
-        'Kayıt oluşturuldu. E-posta doğrulamanızı kontrol edin.';
+      const referralCode = document.querySelector('#referralCode')?.value;
+      if (referralCode && result.data.session) {
+        await supabase.rpc('register_referral', { p_code: referralCode });
+      } else if (referralCode) {
+        localStorage.setItem('pendingReferralCode', referralCode);
+      }
 
+      document.querySelector('#authMsg').textContent =
+        'Kayıt oluşturuldu. E-posta doğrulamanızı kontrol edin.';
       return;
 
     }
@@ -3240,6 +3255,12 @@ window.doAuth =
       return;
     }
 
+
+    const pendingReferral = localStorage.getItem('pendingReferralCode');
+    if (pendingReferral) {
+      const refResult = await supabase.rpc('register_referral', { p_code: pendingReferral });
+      if (!refResult.error) localStorage.removeItem('pendingReferralCode');
+    }
 
     const afterAuth = sessionStorage.getItem('afterAuth');
     if (afterAuth) {
