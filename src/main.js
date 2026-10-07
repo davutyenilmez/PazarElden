@@ -1166,78 +1166,20 @@ window.priceAlert =
    TEKLİF
    ========================================================= */
 
-window.makeOffer =
-  async (listingId, listingPrice, sellerId) => {
-
-    if (!currentUser) {
-
-      location.hash =
-        '#/login';
-
-      return;
-    }
-
-    const priceText =
-      prompt(
-        `İlan fiyatı: ${money(listingPrice)}\n\nTeklifinizi girin:`
-      );
-
-    if (!priceText) return;
-
-    const offer =
-      Number(
-        priceText
-          .replaceAll('.', '')
-          .replace(',', '.')
-      );
-
-    if (!offer || offer <= 0) {
-
-      alert(
-        'Geçerli bir teklif girin.'
-      );
-
-      return;
-    }
-
-    const minimum =
-      listingPrice * 0.70;
-
-    const maximum =
-      listingPrice * 1.05;
-
-    if (
-      offer < minimum ||
-      offer > maximum
-    ) {
-
-      alert(
-        `Teklif ilan fiyatının %70'i ile %105'i arasında olmalıdır.\n\nMinimum: ${money(minimum)}\nMaksimum: ${money(maximum)}`
-      );
-
-      return;
-    }
-
-    await safeTable(
-      'offers',
-      () =>
-        supabase
-          .from('offers')
-          .insert({
-            listing_id: listingId,
-            buyer_id: currentUser.id,
-            seller_id: sellerId,
-            amount: offer,
-            status: 'pending'
-          })
-    );
-
-    alert(
-      'Teklifiniz satıcıya gönderildi.'
-    );
-
-  };
-
+window.makeOffer = async (listingId, listingPrice) => {
+  if (!currentUser) { location.hash = '#/login'; return; }
+  const minimum = listingPrice * 0.80;
+  const priceText = prompt(`İlan fiyatı: ${money(listingPrice)}\nMinimum teklif: ${money(minimum)}\n\nTeklifinizi girin:`);
+  if (!priceText) return;
+  const offer = Number(priceText.replaceAll('.', '').replace(',', '.'));
+  if (!offer || offer < minimum || offer > listingPrice) {
+    alert(`Teklif ilan fiyatının %80'i ile %100'ü arasında olmalıdır.\nMinimum: ${money(minimum)}\nMaksimum: ${money(listingPrice)}`);
+    return;
+  }
+  const { error } = await supabase.rpc('submit_offer', { p_listing_id: listingId, p_amount: offer, p_message: null });
+  if (error) { alert(error.message); return; }
+  alert('Teklifiniz satıcıya güvenli şekilde gönderildi.');
+};
 
 /* =========================================================
    ŞİKAYET
