@@ -3242,147 +3242,75 @@ window.doAuth =
    ========================================================= */
 
 async function adminPage() {
-
-  if (
-    !currentProfile?.is_admin
-  ) {
-
-    return shell(`
-      <div class="panel">
-        <h1>
-          Yetkisiz Alan
-        </h1>
-      </div>
-    `);
-
+  if (!currentProfile?.is_admin) {
+    return shell('<div class="panel"><h1>Yetkisiz Alan</h1></div>');
   }
 
+  const { data: users } = await supabase
+    .from('profiles')
+    .select('id, full_name, city, role, is_admin, is_moderator, premium_until, created_at')
+    .order('created_at', { ascending: false })
+    .limit(100);
 
-  const { data: users } =
-    await supabase
-      .from('profiles')
-      .select('*')
-      .order(
-        'created_at',
-        {
-          ascending: false
-        }
-      )
-      .limit(100);
+  const { data: pending } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false });
 
-
-  const { data: pending } =
-    await supabase
-      .from('listings')
-      .select('*')
-      .eq(
-        'status',
-        'pending'
-      )
-      .order(
-        'created_at',
-        {
-          ascending: false
-        }
-      );
-
+  const allUsers = users || [];
+  const now = Date.now();
+  const startToday = new Date(); startToday.setHours(0,0,0,0);
+  const todayCount = allUsers.filter(u => new Date(u.created_at).getTime() >= startToday.getTime()).length;
+  const weekCount = allUsers.filter(u => new Date(u.created_at).getTime() >= now - 7*24*60*60*1000).length;
+  const newUsers = allUsers.slice(0, 12);
 
   return shell(`
-
-    <section>
-
+    <section class="adminMembers">
       <div class="adminHeader">
-
-        <h1>
-          👑 Yönetim Paneli
-        </h1>
-
-        <p>
-          Kullanıcılar, ilanlar,
-          şikâyetler ve moderasyon.
-        </p>
-
+        <h1>👑 Yönetim Paneli</h1>
+        <p>Üyeleri, yeni kayıtları ve moderasyon işlemlerini tek yerden takip edin.</p>
       </div>
 
-
-      <div class="adminGrid">
-
-        <div class="adminStat">
-          👥
-          <b>
-            ${users?.length || 0}
-          </b>
-          Kullanıcı
-        </div>
-
-        <div class="adminStat">
-          📢
-          <b>
-            ${pending?.length || 0}
-          </b>
-          Bekleyen İlan
-        </div>
-
+      <div class="adminGrid memberStats">
+        <div class="adminStat">👥<b>${allUsers.length}</b><span>Toplam Üye</span></div>
+        <div class="adminStat">🆕<b>${todayCount}</b><span>Bugün Katılan</span></div>
+        <div class="adminStat">📅<b>${weekCount}</b><span>Son 7 Gün</span></div>
+        <div class="adminStat">📢<b>${pending?.length || 0}</b><span>Bekleyen İlan</span></div>
       </div>
 
+      <div class="sectionHead adminSectionHead">
+        <div><small class="sectionLabel">ÜYE TAKİBİ</small><h2>Son Üyeler</h2></div>
+      </div>
+      <div class="panel memberTableWrap">
+        <div class="memberTable">
+          <div class="memberTableHead"><span>Üye</span><span>Konum</span><span>Durum</span><span>Katılım</span></div>
+          ${newUsers.length ? newUsers.map(u => {
+            const premium = u.premium_until && new Date(u.premium_until).getTime() > Date.now();
+            const role = u.is_admin ? '👑 Yönetici' : (u.is_moderator ? '🛡️ Moderatör' : (premium ? '💎 Premium' : 'Üye'));
+            return '<a class="memberRow" href="#/seller/' + u.id + '">' +
+              '<span><b>' + safe(u.full_name || 'PazarElden Üyesi') + '</b></span>' +
+              '<span>' + safe(u.city || 'Belirtilmedi') + '</span>' +
+              '<span>' + role + '</span>' +
+              '<span>' + safe(dateText(u.created_at)) + '</span>' +
+            '</a>';
+          }).join('') : '<div class="empty">Henüz üye bulunmuyor.</div>'}
+        </div>
+      </div>
 
-      <h2>
-        Moderasyon Bekleyen İlanlar
-      </h2>
-
-
-      ${
-        pending?.length
-          ? pending
-              .map(
-                x => `
-
-                  <div class="panel">
-
-                    <h3>
-                      ${safe(x.title)}
-                    </h3>
-
-                    <p>
-                      ${safe(x.description || '')}
-                    </p>
-
-                    <button
-                      onclick="
-                        approveListing(
-                          '${x.id}'
-                        )
-                      "
-                    >
-                      ✅ Onayla
-                    </button>
-
-                    <button
-                      onclick="
-                        rejectListing(
-                          '${x.id}'
-                        )
-                      "
-                    >
-                      ❌ Reddet
-                    </button>
-
-                  </div>
-
-                `
-              )
-              .join('')
-          : `
-              <div class="empty">
-                Bekleyen ilan bulunmuyor.
-              </div>
-            `
-      }
-
+      <div class="sectionHead adminSectionHead">
+        <div><small class="sectionLabel">MODERASYON</small><h2>Bekleyen İlanlar</h2></div>
+      </div>
+      ${pending?.length ? pending.map(x => `
+        <div class="panel">
+          <h3>${safe(x.title)}</h3>
+          <p>${safe(x.description || '')}</p>
+          <button onclick="approveListing('${x.id}')">✅ Onayla</button>
+          <button onclick="rejectListing('${x.id}')">❌ Reddet</button>
+        </div>
+      `).join('') : '<div class="empty">Bekleyen ilan bulunmuyor.</div>'}
     </section>
-
   `);
-
 }
 
 
