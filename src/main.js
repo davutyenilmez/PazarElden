@@ -3151,8 +3151,10 @@ window.doAuth =
               full_name:
                 fullName,
 
-              phone:
-                phone
+              phone: phone,
+              terms_accepted: true,
+              rules_accepted: true,
+              privacy_acknowledged: true
             }
           }
 
@@ -3180,10 +3182,7 @@ window.doAuth =
               result.data.user.id,
 
             full_name:
-              fullName,
-
-            phone:
-              phone
+              fullName
 
           });
 
