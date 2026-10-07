@@ -548,317 +548,110 @@ function card(x) {
 
 async function home() {
 
-  const listings =
-    await getListings();
+  const listings = await getListings();
 
   let userCount = 0;
   let activeCount = listings.length;
   let soldCount = 0;
 
   if (supabase) {
+    const users = await safeTable('profiles', () =>
+      supabase.from('profiles').select('id', { count: 'exact', head: true })
+    );
+    userCount = users?.count || 0;
 
-    const users =
-      await safeTable(
-        'profiles',
-        () =>
-          supabase
-            .from('profiles')
-            .select('id', {
-              count: 'exact',
-              head: true
-            })
-      );
+    const active = await safeTable('listings', () =>
+      supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'active')
+    );
+    activeCount = active?.count || activeCount;
 
-    userCount =
-      users?.count || 0;
-
-    const active =
-      await safeTable(
-        'listings',
-        () =>
-          supabase
-            .from('listings')
-            .select('id', {
-              count: 'exact',
-              head: true
-            })
-            .eq('status', 'active')
-      );
-
-    activeCount =
-      active?.count || activeCount;
-
-    const sold =
-      await safeTable(
-        'listings',
-        () =>
-          supabase
-            .from('listings')
-            .select('id', {
-              count: 'exact',
-              head: true
-            })
-            .eq('status', 'sold')
-      );
-
-    soldCount =
-      sold?.count || 0;
+    const sold = await safeTable('listings', () =>
+      supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'sold')
+    );
+    soldCount = sold?.count || 0;
   }
 
+  const premiumListings = listings.filter(x => x.is_premium === true).slice(0, 5);
+  const normalListings = listings.filter(x => x.is_premium !== true).slice(0, 10);
+
   return shell(`
+    <section class="hero professionalHero">
+      <div class="heroInner">
+        <div class="heroEyebrow">GÜVENLİ • KOLAY • KONTROLLÜ</div>
+        <h1>Aradığın ikinci el ürün<br><em>PazarElden’de seni bekliyor.</em></h1>
+        <p>İhtiyacın olan ürünü kolayca bul, ilanını dakikalar içinde yayınla.</p>
 
-    <section class="hero">
-
-      <div>
-
-        <h1>
-          Aradığın ikinci el ürün
-          <em>PazarElden’de</em>
-        </h1>
-
-        <p>
-          Güvenli, kolay ve kontrollü
-          ikinci el alışveriş.
-        </p>
-
-        <div class="heroSearch">
-
-          <input
-            id="heroQ"
-            placeholder="Ne arıyorsun?"
-          >
-
-          <button
-            onclick="
-              location.hash='#/search?q='+
-              encodeURIComponent(
-                document.querySelector('#heroQ').value
-              )
-            "
-          >
-            🔎 Ara
-          </button>
-
+        <div class="heroSearch professionalSearch">
+          <span class="searchIcon">⌕</span>
+          <input id="heroQ" type="search" autocomplete="off"
+            placeholder="Ürün, marka veya kategori ara..."
+            onkeydown="if(event.key==='Enter'){location.hash='#/search?q='+encodeURIComponent(this.value)}">
+          <button onclick="location.hash='#/search?q='+encodeURIComponent(document.querySelector('#heroQ').value)">Ara</button>
         </div>
 
+        <div class="quickSearch">
+          <span>Popüler:</span>
+          <a href="#/search?q=iPhone">📱 iPhone</a>
+          <a href="#/search?q=Araba">🚗 Araba</a>
+          <a href="#/search?q=Kiralık%20Ev">🏠 Kiralık Ev</a>
+          <a href="#/search?q=Laptop">💻 Laptop</a>
+          <a href="#/search?q=Giyim">👕 Giyim</a>
+        </div>
       </div>
-
     </section>
 
-
-    <section class="stats">
-
-      <div>
-        <strong>
-          ${userCount}
-        </strong>
-
-        <span>
-          👥 Üye
-        </span>
-      </div>
-
-      <div>
-        <strong>
-          ${activeCount}
-        </strong>
-
-        <span>
-          📢 Aktif İlan
-        </span>
-      </div>
-
-      <div>
-        <strong>
-          ${soldCount}
-        </strong>
-
-        <span>
-          ✅ Satılan İlan
-        </span>
-      </div>
-
-      <div>
-        <strong>
-          🟢
-        </strong>
-
-        <span>
-          Aktif Sistem
-        </span>
-      </div>
-
+    <section class="stats professionalStats">
+      <div><span class="statIcon">👥</span><strong>${userCount.toLocaleString('tr-TR')}</strong><span>Kayıtlı Üye</span></div>
+      <div><span class="statIcon">📣</span><strong>${activeCount.toLocaleString('tr-TR')}</strong><span>Aktif İlan</span></div>
+      <div><span class="statIcon">✅</span><strong>${soldCount.toLocaleString('tr-TR')}</strong><span>Satılan İlan</span></div>
+      <div><span class="statIcon onlineDot">●</span><strong class="systemActive">Aktif</strong><span>Sistem Durumu</span></div>
     </section>
 
-
-    <section>
-
-      <h2>
-        Kategoriler
-      </h2>
-
-      <div class="cats">
-
-        ${cats.map((c, i) => `
-
-          <a
-            href="#/search?q=${encodeURIComponent(c)}"
-          >
-
-            <i>
-              ${icons[i]}
-            </i>
-
-            <b>
-              ${safe(c)}
-            </b>
-
-          </a>
-
-        `).join('')}
-
-      </div>
-
-    </section>
-
-
-    <section>
-
+    <section class="categorySection">
       <div class="sectionHead">
-
-        <h2>
-          💎 Öne Çıkan Premium İlanlar
-        </h2>
-
-        <a href="#/search?q=premium">
-          Tümünü Gör
-        </a>
-
+        <div><small class="sectionLabel">KEŞFET</small><h2>Kategoriler</h2></div>
+        <a href="#/search?q=">Tümünü Gör →</a>
       </div>
-
-      <div class="grid">
-
-        ${
-          listings
-            .filter(x => x.is_premium)
-            .slice(0, 8)
-            .map(card)
-            .join('')
-          ||
-          `
-            <div class="empty">
-              Henüz premium ilan bulunmuyor.
-            </div>
-          `
-        }
-
+      <div class="cats professionalCats">
+        ${cats.map((c,i)=>`<a href="#/search?q=${encodeURIComponent(c)}"><i>${icons[i]}</i><b>${safe(c)}</b></a>`).join('')}
       </div>
-
     </section>
 
-
-    <section>
-
+    <section class="marketSection premiumSection">
       <div class="sectionHead">
-
-        <h2>
-          🆕 Son Eklenen İlanlar
-        </h2>
-
+        <div><small class="sectionLabel premiumLabel">PAZARELDEN PREMIUM</small><h2>💎 Öne Çıkan Premium İlanlar</h2></div>
+        <a href="#/search?q=">Tümünü Gör →</a>
       </div>
+      <div class="grid premiumGrid">
+        ${premiumListings.length ? premiumListings.map(card).join('') :
+          '<div class="empty premiumEmpty"><div class="emptyIcon">💎</div><b>Henüz Premium ilan bulunmuyor</b><p>Premium ilanlar burada özel olarak öne çıkarılacak.</p></div>'}
+      </div>
+    </section>
 
+    <section class="marketSection">
+      <div class="sectionHead">
+        <div><small class="sectionLabel">YENİ İLANLAR</small><h2>Son Eklenen İlanlar</h2></div>
+        <a href="#/search?q=">Tümünü Gör →</a>
+      </div>
       <div class="grid">
-
-        ${
-          listings.length
-            ? listings
-                .filter(x => !x.is_premium)
-                .map(card)
-                .join('')
-            : `
-              <div class="empty">
-                Henüz yayınlanmış ilan bulunmuyor.
-              </div>
-            `
-        }
-
+        ${normalListings.length ? normalListings.map(card).join('') :
+          '<div class="empty"><div class="emptyIcon">📦</div><b>Henüz aktif ilan bulunmuyor</b><p>Yeni ilanlar yayınlandığında burada görüntülenecek.</p></div>'}
       </div>
-
     </section>
 
-
-    <section class="homeInfo">
-
-      <h2>
-        Neden PazarElden?
-      </h2>
-
-      <div>
-
-        <article>
-
-          🛡️
-
-          <h3>
-            Güvenli
-          </h3>
-
-          <p>
-            İlanlar yayınlanmadan önce
-            kontrol edilir.
-          </p>
-
-        </article>
-
-        <article>
-
-          📸
-
-          <h3>
-            Kolay İlan
-          </h3>
-
-          <p>
-            En fazla 5 fotoğraf ile
-            ilanınızı oluşturabilirsiniz.
-          </p>
-
-        </article>
-
-        <article>
-
-          💬
-
-          <h3>
-            Güvenli Mesajlaşma
-          </h3>
-
-          <p>
-            Alıcı ve satıcı platform
-            üzerinden iletişim kurabilir.
-          </p>
-
-        </article>
-
-        <article>
-
-          💎
-
-          <h3>
-            Premium
-          </h3>
-
-          <p>
-            Premium ilanlar ana sayfada
-            özel olarak öne çıkarılır.
-          </p>
-
-        </article>
-
+    <section class="homeInfo professionalInfo">
+      <div class="infoTitle">
+        <small class="sectionLabel">NEDEN PAZARELDEN?</small>
+        <h2>İkinci el alışverişin kolay yolu</h2>
+        <p>Alıcı ve satıcıyı sade, güvenli ve kontrollü bir platformda buluşturuyoruz.</p>
       </div>
-
+      <div class="infoCards">
+        <article><span>🔎</span><h3>Kolayca Keşfet</h3><p>Arama ve kategoriler ile aradığın ürüne hızlıca ulaş.</p></article>
+        <article><span>📸</span><h3>Kolay İlan Ver</h3><p>Ürününü ekle ve ilanını PazarElden’de yayınla.</p></article>
+        <article><span>🛡️</span><h3>Kontrollü Sistem</h3><p>İlanlar kurallar ve moderasyon sistemiyle kontrol edilir.</p></article>
+        <article><span>💬</span><h3>Doğrudan İletişim</h3><p>Alıcı ve satıcı PazarElden üzerinden iletişim kurabilir.</p></article>
+      </div>
     </section>
-
   `);
 }
 
