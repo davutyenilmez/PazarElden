@@ -1018,7 +1018,7 @@ async function listing(id) {
         </div>
 
         ${
-          mine
+          (mine || currentProfile?.is_admin)
             ? `
               <div class="ownerPanel">
 
@@ -1047,7 +1047,7 @@ async function listing(id) {
 
                 <p>
                   Yayından kaldırılan ilan tekrar moderasyona gönderilebilir.
-                  Silme işlemi ilanı sistemde silinmiş olarak işaretler.
+                  Yönetici silme işlemi ilanı veritabanından kalıcı olarak kaldırır.
                 </p>
 
               </div>
@@ -1331,20 +1331,17 @@ window.deleteListing =
 
     if (!confirm('Bu ilanı silmek istediğinize emin misiniz?')) return;
 
-    const { error } = await supabase
-      .from('listings')
-      .update({
-        status: 'deleted'
-      })
-      .eq('id', id);
+    const { error } = await supabase.rpc('admin_hard_delete_listing', {
+      p_listing_id: id
+    });
 
     if (error) {
-      alert('İlan silinemedi: ' + error.message);
+      alert('İlan kalıcı olarak silinemedi: ' + error.message);
       return;
     }
 
-    alert('İlan silindi.');
-    location.hash = '#/profile';
+    alert('İlan kalıcı olarak silindi.');
+    location.hash = '#/admin';
 
   };
 
@@ -2315,6 +2312,7 @@ async function profilePage() {
 
 
       '<div class="profileMenu">' +
+        (p.is_admin ? '<a class="adminModuleLink" href="#/admin">👑 Yönetim Merkezi</a>' : '') +
         '<a href="#/profile">📋 İlanlarım</a>' +
         '<a href="#/favorites">❤️ Favorilerim</a>' +
         '<a href="#/following">🔔 Takiplerim</a>' +
@@ -3294,7 +3292,13 @@ async function adminPage() {
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
-  const allUsers = users || [];
+  const { data: allListings } = await supabase
+    .from('listings')
+    .select('id, title, status, price, city, created_at, user_id')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+    const allUsers = users || [];
   const now = Date.now();
   const startToday = new Date(); startToday.setHours(0,0,0,0);
   const todayCount = allUsers.filter(u => new Date(u.created_at).getTime() >= startToday.getTime()).length;
@@ -3325,7 +3329,13 @@ async function adminPage() {
         </div>
       ` : ''}
 
-      <div class="adminGrid memberStats">
+      <div class="adminModuleNav">
+        <a href="#adminNewMembers">👥 Üyeler</a>
+        <a href="#adminModeration">🛡️ Moderasyon</a>
+        <a href="#adminListings">📦 İlan Yönetimi</a>
+      </div>
+
+            <div class="adminGrid memberStats">
         <div class="adminStat">👥<b>${allUsers.length}</b><span>Toplam Üye</span></div>
         <div class="adminStat">🆕<b>${todayCount}</b><span>Bugün Katılan</span></div>
         <div class="adminStat">📅<b>${weekCount}</b><span>Son 7 Gün</span></div>
@@ -3351,7 +3361,7 @@ async function adminPage() {
         </div>
       </div>
 
-      <div class="sectionHead adminSectionHead">
+      <div class="sectionHead adminSectionHead" id="adminModeration">
         <div><small class="sectionLabel">MODERASYON</small><h2>Bekleyen İlanlar</h2></div>
       </div>
       ${pending?.length ? pending.map(x => `
@@ -3360,8 +3370,24 @@ async function adminPage() {
           <p>${safe(x.description || '')}</p>
           <button onclick="approveListing('${x.id}')">✅ Onayla</button>
           <button onclick="rejectListing('${x.id}')">❌ Reddet</button>
+          <button class="dangerBtn" onclick="deleteListing('${x.id}')">🗑️ Kalıcı Sil</button>
         </div>
       `).join('') : '<div class="empty">Bekleyen ilan bulunmuyor.</div>'}
+
+      <div class="sectionHead adminSectionHead" id="adminListings">
+        <div><small class="sectionLabel">YÖNETİCİ MODÜLÜ</small><h2>İlan Yönetimi</h2></div>
+      </div>
+      <div class="panel adminListingManager">
+        ${(allListings || []).length ? allListings.map(x => `
+          <div class="adminListingRow">
+            <div><b>${safe(x.title)}</b><small>${safe(x.status)} • ${money(x.price)} • ${safe(x.city || '')}</small></div>
+            <div class="adminListingActions">
+              <a href="#/listing/${x.id}">Görüntüle</a>
+              <button class="dangerBtn" onclick="deleteListing('${x.id}')">🗑️ Kalıcı Sil</button>
+            </div>
+          </div>
+        `).join('') : '<div class="empty">İlan bulunmuyor.</div>'}
+      </div>
     </section>
   `);
 }
