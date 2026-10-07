@@ -3045,7 +3045,7 @@ function auth(kind) {
               >
 
               <a href="#/privacy">Gizlilik metnini</a> ve
-              <a href="#/rules">site kurallarını</a>
+              <button type="button" class="inlineRulesLink" onclick="openSignupRules()">Site Kurallarını oku</button>
               okudum, kabul ediyorum.
 
             </label>
@@ -3071,13 +3071,32 @@ function auth(kind) {
 
       ${!login && referralCode ? '<input id="referralCode" type="hidden" value="' + safe(referralCode) + '"><small>🎁 Davet bağlantısı algılandı. Üyeliğiniz davet eden kişiye bağlanacak.</small>' : ''}
       <p id="authMsg"></p>
-
+      ${!login ? `
+        <div id="signupRulesModal" class="signupRulesModal" hidden>
+          <div class="signupRulesBox">
+            <div class="signupRulesHead"><b>📋 PazarElden Site Kuralları</b><button type="button" onclick="closeSignupRules()">✕</button></div>
+            <div class="signupRulesBody">
+              <p><b>1.</b> Yasalara aykırı, yasaklı veya tehlikeli ürünlerin ilanı verilemez.</p>
+              <p><b>2.</b> İlan bilgileri, fiyatı ve fotoğrafları gerçek ürünü doğru şekilde yansıtmalıdır.</p>
+              <p><b>3.</b> İlan açıklaması veya fotoğraflarında telefon, e-posta ve benzeri iletişim bilgileri paylaşılmamalıdır.</p>
+              <p><b>4.</b> Spam, tekrarlanan ilan, yanıltıcı fiyat ve sahte içerik yasaktır.</p>
+              <p><b>5.</b> Kullanıcılar birbirleriyle saygılı iletişim kurmalı; dolandırıcılık ve kötüye kullanım yasaktır.</p>
+              <p><b>6.</b> İlanlar yayın öncesi veya sonrasında moderasyon kontrolüne alınabilir.</p>
+              <p><b>7.</b> Kuralları ihlal eden ilanlar kaldırılabilir; tekrarlanan veya ciddi ihlallerde hesap kısıtlanabilir.</p>
+              <a href="#/rules" onclick="closeSignupRules()">Kuralların tamamını ayrı sayfada görüntüle →</a>
+            </div>
+            <button type="button" class="signupRulesDone" onclick="closeSignupRules()">Okudum, Kapat</button>
+          </div>
+        </div>` : ''}
     </div>
 
   `);
 
 }
 
+
+window.openSignupRules = () => { const el=document.querySelector('#signupRulesModal'); if(el) el.hidden=false; };
+window.closeSignupRules = () => { const el=document.querySelector('#signupRulesModal'); if(el) el.hidden=true; };
 
 window.doAuth =
   async kind => {
