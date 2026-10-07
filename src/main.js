@@ -1,20 +1,589 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const cfg = window.PAZARELDEN_CONFIG || {};
-const supabase = cfg.supabaseUrl && cfg.supabaseAnonKey ? createClient(cfg.supabaseUrl, cfg.supabaseAnonKey) : null;
-const cats=['Vasıta','Emlak','Cep Telefonu','Bilgisayar','Elektronik','Ev ve Yaşam','Giyim','Anne ve Bebek','Spor','Hobi','Kitap','Diğer'];
-const icons=['🚗','🏠','📱','💻','📺','🛋️','👕','🧸','⚽','🎨','📚','📦'];
 
-function money(v){return new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY',maximumFractionDigits:0}).format(v||0)}
-function shell(content){return `<header><a class="brand" href="#/">Pazar<span>Elden</span></a><div class="topsearch"><input id="q" placeholder="Ürün, marka veya kategori ara..."><button onclick="searchNow()">Ara</button></div><nav><a href="#/favorites">♡ Favorilerim</a><a href="#/messages">◯ Mesajlarım</a><a href="#/login">Giriş Yap</a><a href="#/signup">Üye Ol</a><a class="cta"href="#/ilan-ver">+ Ücretsiz İlan Ver</a></nav></header><main>${content}</main><footer><b>PazarElden</b><span>İkinci elin güvenli ve kolay pazarı.</span><small>© 2026 PazarElden</small></footer>`}
-window.searchNow=()=>{const q=document.querySelector('#q')?.value||''; location.hash='#/search?q='+encodeURIComponent(q)};
-async function getListings(q=''){ if(!supabase) return []; let x=supabase.from('listings').select('*, listing_images(image_url)').eq('status','active').order('created_at',{ascending:false}).limit(24); if(q)x=x.ilike('title',`%${q}%`); const {data}=await x; return data||[] }
-function card(x){const img=x.listing_images?.[0]?.image_url;return `<a class="card" href="#/listing/${x.id}"><div class="pic">${img?`<img src="${img}">`:'📷'}</div><div class="pad"><b>${x.title}</b><strong>${money(x.price)}</strong><span>${x.city||''}${x.district?' / '+x.district:''}</span></div></a>`}
-async function home(){const listings=await getListings(); return shell(`<section class="hero"><div><h1>Aradığın ikinci el ürün <em>PazarElden’de</em></h1><p>İlanları keşfet, ihtiyacını bul, satıcıyla iletişime geç.</p><div class="heroSearch"><input id="heroQ" placeholder="Ne arıyorsun?"><button onclick="location.hash='#/search?q='+encodeURIComponent(document.querySelector('#heroQ').value)">Ara</button></div></div></section><section><h2>Kategoriler</h2><div class="cats">${cats.map((c,i)=>`<a href="#/search?q=${encodeURIComponent(c)}"><i>${icons[i]}</i><b>${c}</b></a>`).join('')}</div></section><section><div class="sectionHead"><h2>Son Eklenen İlanlar</h2></div><div class="grid">${listings.length?listings.map(card).join(''):'<div class="empty">Henüz gerçek ilan yok. Supabase bağlantısı yapıldığında ilanlar burada görünecek.</div>'}</div></section><section class="trust"><h2>PazarElden ile kolayca al, kolayca sat</h2><div><article>🔎<b>Kolayca keşfet</b><p>Kategoriler ve arama ile aradığını hızlıca bul.</p></article><article>📸<b>Ücretsiz ilan ver</b><p>Fotoğraflarını yükle, ilanını dakikalar içinde yayınla.</p></article><article>💬<b>Doğrudan iletişim</b><p>Alıcı ve satıcı mesajlaşma sistemiyle görüşsün.</p></article></div></section>`)}
-async function listing(id){ if(!supabase)return shell('<div class="panel">Önce Supabase bağlantısını tamamlayın.</div>'); const {data:x}=await supabase.from('listings').select('*, listing_images(image_url), profiles(full_name)').eq('id',id).single(); if(!x)return shell('<div class="panel">İlan bulunamadı.</div>');return shell(`<section class="detail"><div class="gallery">${x.listing_images?.length?x.listing_images.map(i=>`<img src="${i.image_url}">`).join(''):'<div class="noimg">📷</div>'}</div><aside><h1>${x.title}</h1><div class="price">${money(x.price)}</div><p>${x.city||''} ${x.district||''}</p><hr><b>Ürün durumu</b><p>${x.condition||'-'}</p><b>Açıklama</b><p>${x.description}</p><button class="wide">Satıcıya Mesaj Gönder</button></aside></section>`)}
-function auth(kind){return shell(`<div class="auth panel"><h1>${kind==='login'?'Giriş Yap':'Üye Ol'}</h1><input id="email" type="email" placeholder="E-posta"><input id="pass" type="password" placeholder="Şifre"><button onclick="doAuth('${kind}')">${kind==='login'?'Giriş Yap':'Hesap Oluştur'}</button><p id="authMsg"></p></div>`)}
-window.doAuth=async(kind)=>{if(!supabase)return alert('Önce config.js içine Supabase bilgilerini ekleyin.');const email=document.querySelector('#email').value, password=document.querySelector('#pass').value;const r=kind==='login'?await supabase.auth.signInWithPassword({email,password}):await supabase.auth.signUp({email,password});document.querySelector('#authMsg').textContent=r.error?r.error.message:(kind==='login'?'Giriş başarılı.':'Kayıt oluşturuldu. E-postanızı kontrol edin.');if(!r.error&&kind==='login')location.hash='#/'}
-function newListing(){return shell(`<div class="panel form"><h1>Ücretsiz İlan Ver</h1><input id="title" placeholder="İlan başlığı"><select id="category"><option value="">Kategori seç</option>${cats.map(c=>`<option>${c}</option>`).join('')}</select><textarea id="desc" placeholder="Açıklama"></textarea><input id="price" type="number" placeholder="Fiyat"><select id="condition"><option>Sıfır</option><option>Yeni Gibi</option><option>İyi</option><option>Orta</option><option>Yıpranmış</option></select><input id="city" placeholder="Şehir"><input id="district" placeholder="İlçe"><input id="photos" type="file" accept="image/*" multiple><button onclick="publishListing()">İlanı Yayınla</button><p id="formMsg"></p></div>`)}
-window.publishListing=async()=>{if(!supabase)return alert('Önce Supabase bağlantısını tamamlayın.');const {data:{user}}=await supabase.auth.getUser();if(!user){location.hash='#/login';return} const catName=document.querySelector('#category').value;let category_id=null;if(catName){const {data:c}=await supabase.from('categories').select('id').eq('name',catName).maybeSingle();category_id=c?.id||null}const payload={user_id:user.id,category_id,title:document.querySelector('#title').value,description:document.querySelector('#desc').value,price:Number(document.querySelector('#price').value),condition:document.querySelector('#condition').value,city:document.querySelector('#city').value,district:document.querySelector('#district').value};const {data:l,error}=await supabase.from('listings').insert(payload).select().single();if(error){document.querySelector('#formMsg').textContent=error.message;return}for(const f of [...document.querySelector('#photos').files]){const path=`${user.id}/${l.id}-${crypto.randomUUID()}-${f.name}`;const up=await supabase.storage.from('listing-images').upload(path,f);if(!up.error){const {data:u}=supabase.storage.from('listing-images').getPublicUrl(path);await supabase.from('listing_images').insert({listing_id:l.id,image_url:u.publicUrl})}}location.hash='#/listing/'+l.id}
-async function search(){const p=new URLSearchParams(location.hash.split('?')[1]||'');const q=p.get('q')||'';const listings=await getListings(q);return shell(`<section><h1>Arama sonuçları</h1><p>“${q}” için sonuçlar</p><div class="grid">${listings.length?listings.map(card).join(''):'<div class="empty">Sonuç bulunamadı.</div>'}</div></section>`)}
-async function render(){const path=location.hash.replace('#','')||'/';let html;if(path==='/')html=await home();else if(path.startsWith('/listing/'))html=await listing(path.split('/')[2]);else if(path.startsWith('/search'))html=await search();else if(path==='/login')html=auth('login');else if(path==='/signup')html=auth('signup');else if(path==='/new')html=newListing();else html=shell('<div class="panel"><h1>Yakında</h1><p>Bu bölüm Supabase bağlantısı sonrası tamamlanacak.</p></div>');document.querySelector('#app').innerHTML=html}window.addEventListener('hashchange',render);render();
+const supabase =
+  cfg.supabaseUrl && cfg.supabaseAnonKey
+    ? createClient(cfg.supabaseUrl, cfg.supabaseAnonKey)
+    : null;
+
+const cats = [
+  'Vasıta',
+  'Emlak',
+  'Cep Telefonu',
+  'Bilgisayar',
+  'Elektronik',
+  'Ev ve Yaşam',
+  'Giyim',
+  'Anne ve Bebek',
+  'Spor',
+  'Hobi',
+  'Kitap',
+  'Diğer'
+];
+
+const icons = [
+  '🚗','🏠','📱','💻','📺','🛋️',
+  '👕','🧸','⚽','🎨','📚','📦'
+];
+
+function money(v) {
+  return new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY',
+    maximumFractionDigits: 0
+  }).format(v || 0);
+}
+
+function shell(content) {
+  return `
+    <header>
+      <a class="brand" href="#/">Pazar<span>Elden</span></a>
+
+      <div class="topsearch">
+        <input id="q" placeholder="Ürün, marka veya kategori ara...">
+        <button onclick="searchNow()">Ara</button>
+      </div>
+
+      <nav>
+        <a href="#/favorites">♡ Favorilerim</a>
+        <a href="#/messages">◯ Mesajlarım</a>
+        <a href="#/login">Giriş Yap</a>
+        <a href="#/signup">Üye Ol</a>
+        <a class="cta" href="#/ilan-ver">+ Ücretsiz İlan Ver</a>
+      </nav>
+    </header>
+
+    <main>${content}</main>
+
+    <footer>
+      <b>PazarElden</b>
+      <span>İkinci elin güvenli ve kolay pazarı.</span>
+      <small>© 2026 PazarElden</small>
+    </footer>
+  `;
+}
+
+window.searchNow = () => {
+  const q = document.querySelector('#q')?.value || '';
+  location.hash = '#/search?q=' + encodeURIComponent(q);
+};
+
+async function getListings(q = '') {
+  if (!supabase) return [];
+
+  let x = supabase
+    .from('listings')
+    .select('*, listing_images(image_url)')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(24);
+
+  if (q) x = x.ilike('title', `%${q}%`);
+
+  const { data } = await x;
+  return data || [];
+}
+
+function card(x) {
+  const img = x.listing_images?.[0]?.image_url;
+
+  return `
+    <a class="card" href="#/listing/${x.id}">
+      <div class="pic">
+        ${img ? `<img src="${img}">` : '📷'}
+      </div>
+
+      <div class="pad">
+        <b>${x.title}</b>
+        <strong>${money(x.price)}</strong>
+        <span>
+          ${x.city || ''}
+          ${x.district ? ' / ' + x.district : ''}
+        </span>
+      </div>
+    </a>
+  `;
+}
+
+async function home() {
+  const listings = await getListings();
+
+  return shell(`
+    <section class="hero">
+      <div>
+        <h1>
+          Aradığın ikinci el ürün
+          <em>PazarElden’de</em>
+        </h1>
+
+        <p>
+          İlanları keşfet, ihtiyacını bul,
+          satıcıyla iletişime geç.
+        </p>
+
+        <div class="heroSearch">
+          <input id="heroQ" placeholder="Ne arıyorsun?">
+
+          <button
+            onclick="location.hash='#/search?q='+
+            encodeURIComponent(
+              document.querySelector('#heroQ').value
+            )">
+            Ara
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Kategoriler</h2>
+
+      <div class="cats">
+        ${cats.map((c, i) => `
+          <a href="#/search?q=${encodeURIComponent(c)}">
+            <i>${icons[i]}</i>
+            <b>${c}</b>
+          </a>
+        `).join('')}
+      </div>
+    </section>
+
+    <section>
+      <div class="sectionHead">
+        <h2>Son Eklenen İlanlar</h2>
+      </div>
+
+      <div class="grid">
+        ${
+          listings.length
+            ? listings.map(card).join('')
+            : `
+              <div class="empty">
+                Henüz gerçek ilan yok.
+                Supabase bağlantısı yapıldığında
+                ilanlar burada görünecek.
+              </div>
+            `
+        }
+      </div>
+    </section>
+
+    <section class="trust">
+      <h2>PazarElden ile kolayca al, kolayca sat</h2>
+
+      <div>
+        <article>
+          🔎
+          <b>Kolayca keşfet</b>
+          <p>
+            Kategoriler ve arama ile
+            aradığını hızlıca bul.
+          </p>
+        </article>
+
+        <article>
+          📸
+          <b>Ücretsiz ilan ver</b>
+          <p>
+            Fotoğraflarını yükle,
+            ilanını dakikalar içinde yayınla.
+          </p>
+        </article>
+
+        <article>
+          💬
+          <b>Doğrudan iletişim</b>
+          <p>
+            Alıcı ve satıcı mesajlaşma
+            sistemiyle görüşsün.
+          </p>
+        </article>
+      </div>
+    </section>
+  `);
+}
+
+async function listing(id) {
+  if (!supabase) {
+    return shell(`
+      <div class="panel">
+        Önce Supabase bağlantısını tamamlayın.
+      </div>
+    `);
+  }
+
+  const { data: x } = await supabase
+    .from('listings')
+    .select('*, listing_images(image_url), profiles(full_name)')
+    .eq('id', id)
+    .single();
+
+  if (!x) {
+    return shell(`
+      <div class="panel">
+        İlan bulunamadı.
+      </div>
+    `);
+  }
+
+  return shell(`
+    <section class="detail">
+
+      <div class="gallery">
+        ${
+          x.listing_images?.length
+            ? x.listing_images
+                .map(i => `<img src="${i.image_url}">`)
+                .join('')
+            : '<div class="noimg">📷</div>'
+        }
+      </div>
+
+      <aside>
+        <h1>${x.title}</h1>
+
+        <div class="price">
+          ${money(x.price)}
+        </div>
+
+        <p>
+          ${x.city || ''}
+          ${x.district || ''}
+        </p>
+
+        <hr>
+
+        <b>Ürün durumu</b>
+        <p>${x.condition || '-'}</p>
+
+        <b>Açıklama</b>
+        <p>${x.description || ''}</p>
+
+        <button class="wide">
+          Satıcıya Mesaj Gönder
+        </button>
+      </aside>
+
+    </section>
+  `);
+}
+
+function auth(kind) {
+  return shell(`
+    <div class="auth panel">
+
+      <h1>
+        ${kind === 'login' ? 'Giriş Yap' : 'Üye Ol'}
+      </h1>
+
+      <input
+        id="email"
+        type="email"
+        placeholder="E-posta"
+      >
+
+      <input
+        id="pass"
+        type="password"
+        placeholder="Şifre"
+      >
+
+      <button onclick="doAuth('${kind}')">
+        ${
+          kind === 'login'
+            ? 'Giriş Yap'
+            : 'Hesap Oluştur'
+        }
+      </button>
+
+      <p id="authMsg"></p>
+
+    </div>
+  `);
+}
+
+window.doAuth = async (kind) => {
+
+  if (!supabase) {
+    return alert(
+      'Önce config.js içine Supabase bilgilerini ekleyin.'
+    );
+  }
+
+  const email =
+    document.querySelector('#email').value;
+
+  const password =
+    document.querySelector('#pass').value;
+
+  const r =
+    kind === 'login'
+      ? await supabase.auth.signInWithPassword({
+          email,
+          password
+        })
+      : await supabase.auth.signUp({
+          email,
+          password
+        });
+
+  document.querySelector('#authMsg').textContent =
+    r.error
+      ? r.error.message
+      : kind === 'login'
+        ? 'Giriş başarılı.'
+        : 'Kayıt oluşturuldu. E-postanızı kontrol edin.';
+
+  if (!r.error && kind === 'login') {
+    location.hash = '#/';
+  }
+};
+
+function newListing() {
+  return shell(`
+    <div class="panel form">
+
+      <h1>Ücretsiz İlan Ver</h1>
+
+      <input
+        id="title"
+        placeholder="İlan başlığı"
+      >
+
+      <select id="category">
+        <option value="">
+          Kategori seç
+        </option>
+
+        ${cats.map(c =>
+          `<option>${c}</option>`
+        ).join('')}
+      </select>
+
+      <textarea
+        id="desc"
+        placeholder="Açıklama">
+      </textarea>
+
+      <input
+        id="price"
+        type="number"
+        placeholder="Fiyat"
+      >
+
+      <select id="condition">
+        <option>Sıfır</option>
+        <option>Yeni Gibi</option>
+        <option>İyi</option>
+        <option>Orta</option>
+        <option>Yıpranmış</option>
+      </select>
+
+      <input
+        id="city"
+        placeholder="Şehir"
+      >
+
+      <input
+        id="district"
+        placeholder="İlçe"
+      >
+
+      <input
+        id="photos"
+        type="file"
+        accept="image/*"
+        multiple
+      >
+
+      <button onclick="publishListing()">
+        İlanı Yayınla
+      </button>
+
+      <p id="formMsg"></p>
+
+    </div>
+  `);
+}
+
+window.publishListing = async () => {
+
+  if (!supabase) {
+    return alert(
+      'Önce Supabase bağlantısını tamamlayın.'
+    );
+  }
+
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    location.hash = '#/login';
+    return;
+  }
+
+  const catName =
+    document.querySelector('#category').value;
+
+  let category_id = null;
+
+  if (catName) {
+    const { data: c } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('name', catName)
+      .maybeSingle();
+
+    category_id = c?.id || null;
+  }
+
+  const payload = {
+    user_id: user.id,
+    category_id,
+    title:
+      document.querySelector('#title').value,
+    description:
+      document.querySelector('#desc').value,
+    price:
+      Number(
+        document.querySelector('#price').value
+      ),
+    condition:
+      document.querySelector('#condition').value,
+    city:
+      document.querySelector('#city').value,
+    district:
+      document.querySelector('#district').value
+  };
+
+  const { data: l, error } = await supabase
+    .from('listings')
+    .insert(payload)
+    .select()
+    .single();
+
+  if (error) {
+    document.querySelector('#formMsg').textContent =
+      error.message;
+    return;
+  }
+
+  for (
+    const f of [
+      ...document.querySelector('#photos').files
+    ]
+  ) {
+
+    const path =
+      `${user.id}/${l.id}-${crypto.randomUUID()}-${f.name}`;
+
+    const up = await supabase.storage
+      .from('listing-images')
+      .upload(path, f);
+
+    if (!up.error) {
+
+      const { data: u } =
+        supabase.storage
+          .from('listing-images')
+          .getPublicUrl(path);
+
+      await supabase
+        .from('listing_images')
+        .insert({
+          listing_id: l.id,
+          image_url: u.publicUrl
+        });
+    }
+  }
+
+  location.hash = '#/listing/' + l.id;
+};
+
+async function search() {
+
+  const p =
+    new URLSearchParams(
+      location.hash.split('?')[1] || ''
+    );
+
+  const q = p.get('q') || '';
+
+  const listings =
+    await getListings(q);
+
+  return shell(`
+    <section>
+
+      <h1>Arama sonuçları</h1>
+
+      <p>
+        “${q}” için sonuçlar
+      </p>
+
+      <div class="grid">
+        ${
+          listings.length
+            ? listings.map(card).join('')
+            : `
+              <div class="empty">
+                Sonuç bulunamadı.
+              </div>
+            `
+        }
+      </div>
+
+    </section>
+  `);
+}
+
+async function render() {
+
+  const path =
+    location.hash.replace('#', '') || '/';
+
+  let html;
+
+  if (path === '/') {
+    html = await home();
+
+  } else if (path === '/ilan-ver' || path === '/new') {
+    html = newListing();
+
+  } else if (path.startsWith('/listing/')) {
+    html = await listing(
+      path.split('/')[2]
+    );
+
+  } else if (path.startsWith('/search')) {
+    html = await search();
+
+  } else if (path === '/login') {
+    html = auth('login');
+
+  } else if (path === '/signup') {
+    html = auth('signup');
+
+  } else {
+    html = shell(`
+      <div class="panel">
+        <h1>Yakında</h1>
+        <p>
+          Bu bölüm henüz tamamlanmadı.
+        </p>
+      </div>
+    `);
+  }
+
+  document.querySelector('#app').innerHTML =
+    html;
+}
+
+window.addEventListener(
+  'hashchange',
+  render
+);
+
+render();
