@@ -1,72 +1,145 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const cfg = window.PAZARELDEN_CONFIG || {};
-
-const supabase =
-  cfg.supabaseUrl && cfg.supabaseAnonKey
-    ? createClient(cfg.supabaseUrl, cfg.supabaseAnonKey)
-    : null;
-
-const cats = [
-  'Vasıta','Emlak','Cep Telefonu','Bilgisayar','Elektronik',
-  'Ev ve Yaşam','Giyim','Anne ve Bebek','Spor','Hobi','Kitap','Diğer'
-];
-
-const icons = [
-  '🚗','🏠','📱','💻','📺','🛋️','👕','🧸','⚽','🎨','📚','📦'
-];
+const supabase = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
 
 let currentUser = null;
 let currentProfile = null;
 let currentActiveListingCount = 0;
 
-/* =========================================================
-   YARDIMCILAR
-========================================================= */
+const RULES_VERSION = '1.0';
+const PREMIUM_PRICE = 99;
 
-function safe(value = '') {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
+const categories = [
+  ['Emlak','🏠'],
+  ['Vasıta','🚗'],
+  ['Elektronik','💻'],
+  ['Ev & Yaşam','🛋️'],
+  ['Giyim','👕'],
+  ['Anne & Bebek','🍼'],
+  ['Spor','⚽'],
+  ['Hobi','🎸'],
+  ['Kitap','📚'],
+  ['Koleksiyon','🪙'],
+  ['İş Makineleri','🚜'],
+  ['Diğer','📦']
+];
+
+const $ = s => document.querySelector(s);
+
+function safe(v='') {
+  return String(v)
+    .replaceAll('&','&amp;')
+    .replaceAll('<','&lt;')
+    .replaceAll('>','&gt;')
+    .replaceAll('"','&quot;')
+    .replaceAll("'",'&#039;');
 }
 
-function money(value) {
+function money(v) {
   return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    maximumFractionDigits: 0
-  }).format(Number(value || 0));
+    style:'currency',
+    currency:'TRY',
+    maximumFractionDigits:0
+  }).format(Number(v || 0));
 }
 
-function dateText(value) {
-  if (!value) return '';
-
-  try {
-    return new Intl.DateTimeFormat('tr-TR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(new Date(value));
-  } catch {
-    return '';
-  }
+function dateText(v) {
+  if (!v) return '-';
+  return new Date(v).toLocaleString('tr-TR');
 }
 
 function isAdmin() {
   return currentProfile?.is_admin === true;
 }
 
-async function loadSession() {
-  if (!supabase) return;
+function isModerator() {
+  return isAdmin() || currentProfile?.is_moderator === true;
+}
 
+function isPremium(profile=currentProfile) {
+  return !!(
+    profile?.premium_until &&
+    new Date(profile.premium_until) > new Date()
+  );
+}
+
+function premiumDays(profile=currentProfile) {
+  if (!isPremium(profile)) return 0;
+  return Math.max(
+    1,
+    Math.ceil(
+      (new Date(profile.premium_until) - new Date()) /
+      86400000
+    )
+  );
+}
+
+function rankInfo(count, profile=currentProfile) {
+  if (profile?.is_admin)
+    return ['👑','PazarElden Yöneticisi'];
+
+  if (profile?.is_moderator)
+    return ['🛡️','PazarElden Moderatörü'];
+
+  if (isPremium(profile))
+    return ['💎','Premium Satıcı'];
+
+  const ranks = [
+    'Yeni Üye',
+    'Onbaşı',
+    'Çavuş',
+    'Başçavuş',
+    'Kıdemli Başçavuş',
+    'Uzman Satıcı',
+    'Kıdemli Satıcı',
+    'Usta Satıcı',
+    'Bronz Satıcı',
+    'Gümüş Satıcı',
+    'Altın Satıcı',
+    'Platin Satıcı',
+    'Elmas Satıcı',
+    'Seçkin Satıcı',
+    'Profesyonel Satıcı',
+    'Pazar Ustası',
+    'Kıdemli Pazar Ustası',
+    'Pazar Şampiyonu',
+    'Pazar Eliti',
+    'PazarElden Ustası',
+    'PazarElden Efsanesi'
+  ];
+
+  const level = Math.min(20, Math.floor(Number(count || 0) / 5));
+  return ['🏅', ranks[level]];
+}
+
+function statusText(s) {
+  return ({
+    pending:'🕐 Onay Bekliyor',
+    active:'🟢 Yayında',
+    inactive:'⏸️ Pasif',
+    sold:'✅ Satıldı',
+    expired:'⌛ Süresi Doldu',
+    rejected:'❌ Reddedildi',
+    deleted:'🗑️ Silindi'
+  })[s] || s;
+}
+
+function visitorId() {
+  let id = localStorage.getItem('pazarelden_visitor_id');
+
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('pazarelden_visitor_id', id);
+  }
+
+  return id;
+}
+
+async function loadSession() {
   const { data } = await supabase.auth.getSession();
 
-  currentUser = data?.session?.user || null;
+  currentUser = data.session?.user || null;
   currentProfile = null;
   currentActiveListingCount = 0;
 
@@ -82,657 +155,1321 @@ async function loadSession() {
 
   const { count } = await supabase
     .from('listings')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', currentUser.id)
-    .eq('status', 'active');
+    .select('id',{ count:'exact', head:true })
+    .eq('user_id',currentUser.id)
+    .eq('status','active')
+    .gt('expires_at',new Date().toISOString());
 
   currentActiveListingCount = count || 0;
 }
 
-function userName() {
-  if (currentProfile?.full_name?.trim()) {
-    return currentProfile.full_name.trim();
-  }
-
-  return 'Profilim';
+async function expireOldListings() {
+  try {
+    await supabase.rpc('expire_old_listings');
+  } catch {}
 }
-
-/* =========================================================
-   20 KADEMELİ ROZET
-========================================================= */
-
-const rankNames = [
-  'Onbaşı',
-  'Çavuş',
-  'Başçavuş',
-  'Kıdemli Başçavuş',
-  'Uzman Satıcı',
-  'Kıdemli Satıcı',
-  'Usta Satıcı',
-  'Bronz Satıcı',
-  'Gümüş Satıcı',
-  'Altın Satıcı',
-  'Platin Satıcı',
-  'Elmas Satıcı',
-  'Seçkin Satıcı',
-  'Profesyonel Satıcı',
-  'Pazar Ustası',
-  'Kıdemli Pazar Ustası',
-  'Pazar Şampiyonu',
-  'Pazar Eliti',
-  'PazarElden Ustası',
-  'PazarElden Efsanesi'
-];
-
-const rankIcons = [
-  '🎖️','🎖️','⭐','⭐','🛡️','🛡️','🏅','🥉','🥈','🥇',
-  '💠','💎','✨','🏆','🏆','👑','👑','🔥','🌟','💫'
-];
-
-function rankInfo(count = 0, admin = false) {
-  if (admin) {
-    return {
-      name: 'PazarElden Yöneticisi',
-      icon: '👑',
-      level: 'Yönetici'
-    };
-  }
-
-  if (count < 5) {
-    return {
-      name: 'Yeni Üye',
-      icon: '🌱',
-      level: 0
-    };
-  }
-
-  const level = Math.min(20, Math.floor(count / 5));
-
-  return {
-    name: rankNames[level - 1],
-    icon: rankIcons[level - 1],
-    level
-  };
-}
-
-function rankBadge(count = 0, admin = false) {
-  const rank = rankInfo(count, admin);
-
-  return `
-    <span class="rankBadge">
-      ${rank.icon} ${safe(rank.name)}
-    </span>
-  `;
-}
-
-/* =========================================================
-   SAYFA İSKELETİ
-========================================================= */
 
 function shell(content) {
-  const rank = rankInfo(
+  const [icon,rank] = rankInfo(
     currentActiveListingCount,
-    isAdmin()
+    currentProfile
   );
 
-  const account = currentUser
-    ? `
-      <div class="accountWrap">
-        <button class="accountButton" onclick="toggleAccountMenu(event)">
-          <span>👤</span>
-
-          <span class="accountText">
-            <b>${safe(userName())}</b>
-            <small>${rank.icon} ${safe(rank.name)}</small>
-          </span>
-
-          <span>▾</span>
-        </button>
-
-        <div id="accountMenu" class="accountMenu">
-
-          <div class="accountMenuHead">
-            <b>${safe(userName())}</b>
-
-            ${rankBadge(
-              currentActiveListingCount,
-              isAdmin()
-            )}
-
-            <small>
-              ${currentActiveListingCount} aktif ilan
-            </small>
-          </div>
-
-          ${
-            isAdmin()
-              ? `
-                <a href="#/admin">
-                  👑 Yönetici Paneli
-                </a>
-              `
-              : ''
-          }
-
-          <a href="#/profile">
-            👤 Profilim ve İlanlarım
-          </a>
-
-          <a href="#/favorites">
-            ♡ Favorilerim
-          </a>
-
-          <a href="#/messages">
-            💬 Mesajlarım
-          </a>
-
-          <button onclick="logout()">
-            ↪ Çıkış Yap
-          </button>
-        </div>
-      </div>
-    `
-    : `
-      <a href="#/login">Giriş Yap</a>
-      <a href="#/signup">Üye Ol</a>
-    `;
-
   return `
-    <style>
-      .accountWrap{
-        position:relative;
-      }
-
-      .accountButton{
-        display:flex;
-        align-items:center;
-        gap:8px;
-        background:#fff;
-        color:#10233f;
-        border:1px solid #e4e9f0;
-        border-radius:10px;
-        padding:7px 10px;
-      }
-
-      .accountText{
-        display:flex;
-        flex-direction:column;
-        align-items:flex-start;
-      }
-
-      .accountText b{
-        font-size:12px;
-      }
-
-      .accountText small{
-        font-size:9px;
-        color:#687386;
-      }
-
-      .accountMenu{
-        display:none;
-        position:absolute;
-        right:0;
-        top:calc(100% + 8px);
-        width:230px;
-        background:#fff;
-        border:1px solid #e2e8f0;
-        border-radius:12px;
-        box-shadow:0 14px 35px rgba(0,0,0,.14);
-        padding:7px;
-        z-index:9999;
-      }
-
-      .accountMenu.open{
-        display:block;
-      }
-
-      .accountMenuHead{
-        padding:10px;
-        border-bottom:1px solid #edf0f4;
-        margin-bottom:5px;
-        display:flex;
-        flex-direction:column;
-        gap:5px;
-      }
-
-      .accountMenu a,
-      .accountMenu button{
-        display:block;
-        width:100%;
-        padding:9px 10px;
-        text-align:left;
-        background:transparent;
-        color:#10233f;
-        border:0;
-        border-radius:7px;
-        font-size:12px;
-        font-weight:600;
-      }
-
-      .accountMenu a:hover,
-      .accountMenu button:hover{
-        background:#f4f7fa;
-      }
-
-      .rankBadge{
-        display:inline-flex;
-        width:max-content;
-        padding:4px 8px;
-        border-radius:999px;
-        background:#e9f8f8;
-        color:#087f87;
-        border:1px solid #cceaea;
-        font-size:10px;
-        font-weight:800;
-      }
-
-      .adminTitle{
-        display:flex;
-        align-items:center;
-        gap:10px;
-        flex-wrap:wrap;
-      }
-
-      .adminStats{
-        display:grid;
-        grid-template-columns:repeat(4,1fr);
-        gap:14px;
-        margin:20px 0 30px;
-      }
-
-      .adminStat{
-        background:#fff;
-        border:1px solid #e2e8f0;
-        border-radius:14px;
-        padding:20px;
-      }
-
-      .adminStat span{
-        display:block;
-        color:#64748b;
-        font-size:12px;
-      }
-
-      .adminStat strong{
-        display:block;
-        font-size:28px;
-        color:#0c315e;
-        margin-top:5px;
-      }
-
-      .adminTable{
-        width:100%;
-        border-collapse:collapse;
-      }
-
-      .adminTable th,
-      .adminTable td{
-        padding:11px 8px;
-        border-bottom:1px solid #edf0f4;
-        text-align:left;
-        font-size:12px;
-      }
-
-      .adminTable th{
-        color:#64748b;
-      }
-
-      .statusBadge{
-        display:inline-block;
-        padding:4px 8px;
-        border-radius:999px;
-        background:#eef2f7;
-        font-size:10px;
-        font-weight:700;
-      }
-
-      .actionRow{
-        display:flex;
-        gap:8px;
-        flex-wrap:wrap;
-        margin-top:15px;
-      }
-
-      .actionRow button,
-      .actionRow a{
-        padding:9px 12px;
-        border-radius:8px;
-        font-size:11px;
-        font-weight:700;
-      }
-
-      .dangerButton{
-        background:#a51d2d !important;
-      }
-
-      .warningButton{
-        background:#c67b00 !important;
-      }
-
-      .successButton{
-        background:#087f87 !important;
-      }
-
-      .profileSummary{
-        display:flex;
-        justify-content:space-between;
-        gap:15px;
-        align-items:center;
-        flex-wrap:wrap;
-        padding:16px;
-        background:#f8fafc;
-        border:1px solid #e2e8f0;
-        border-radius:12px;
-        margin:15px 0;
-      }
-
-      .nameLocked{
-        padding:11px 13px;
-        background:#f8fafc;
-        border:1px solid #e2e8f0;
-        border-radius:8px;
-        font-weight:700;
-      }
-
-      @media(max-width:900px){
-        .adminStats{
-          grid-template-columns:repeat(2,1fr);
-        }
-
-        .accountText small{
-          display:none;
-        }
-      }
-
-      @media(max-width:600px){
-        .adminStats{
-          grid-template-columns:1fr;
-        }
-
-        .adminTable{
-          display:block;
-          overflow-x:auto;
-        }
-      }
-    </style>
-
     <header>
-      <a class="brand" href="#/">
-        Pazar<span>Elden</span>
-      </a>
+      <div class="topbar">
+        <a class="logo" href="#/">Pazar<span>Elden</span></a>
 
-      <div class="topsearch">
-        <input id="q" placeholder="Ürün, marka veya kategori ara...">
-        <button onclick="searchNow()">Ara</button>
+        <form class="topsearch" onsubmit="doSearch(event)">
+          <input id="topSearch" placeholder="Ne arıyorsunuz?">
+          <button>Ara</button>
+        </form>
+
+        <nav>
+          ${
+            currentUser
+              ? `
+                <a href="#/favorites">♡ Favorilerim</a>
+                <a href="#/messages">◯ Mesajlarım</a>
+                <a href="#/notifications">🔔</a>
+                <a class="cta" href="#/ilan-ver">+ Ücretsiz İlan Ver</a>
+
+                <div class="account">
+                  <button class="accountBtn" onclick="toggleAccountMenu()">
+                    <b>${safe(currentProfile?.full_name || 'Hesabım')}</b>
+                    <small>${icon} ${safe(rank)}</small>
+                  </button>
+
+                  <div id="accountMenu" class="accountMenu">
+                    <a href="#/profile">Profilim</a>
+                    <a href="#/premium">💎 Premium</a>
+                    ${
+                      isModerator()
+                        ? `<a href="#/admin">🛡️ Yönetim Paneli</a>`
+                        : ''
+                    }
+                    <button onclick="logout()">Çıkış Yap</button>
+                  </div>
+                </div>
+              `
+              : `
+                <a href="#/login">Giriş Yap</a>
+                <a href="#/signup">Üye Ol</a>
+                <a class="cta" href="#/ilan-ver">+ İlan Ver</a>
+              `
+          }
+        </nav>
       </div>
-
-      <nav>
-        <a href="#/favorites">♡ Favorilerim</a>
-        <a href="#/messages">◯ Mesajlarım</a>
-
-        <a class="cta" href="#/ilan-ver">
-          + Ücretsiz İlan Ver
-        </a>
-
-        ${account}
-      </nav>
     </header>
 
-    <main>
-      ${content}
-    </main>
+    <main>${content}</main>
 
     <footer>
-      <b>PazarElden</b>
-      <span>İkinci elin güvenli ve kolay pazarı.</span>
-      <small>© 2026 PazarElden</small>
+      <div>
+        <b>PazarElden</b>
+        <p>Güvenli ve kolay ikinci el alışveriş.</p>
+      </div>
+
+      <div class="footerlinks">
+        <a href="#/rules">İlan Kuralları</a>
+        <a href="#/terms">Kullanım Koşulları</a>
+        <a href="#/privacy">Gizlilik / KVKK</a>
+        <a href="#/premium">Premium</a>
+      </div>
     </footer>
+
+    <style>
+      .account{position:relative}
+      .accountBtn{background:white;border:1px solid #ddd;border-radius:10px;padding:7px 12px}
+      .accountBtn small{display:block;font-size:10px}
+      .accountMenu{display:none;position:absolute;right:0;top:52px;background:white;border:1px solid #ddd;border-radius:12px;padding:8px;width:190px;z-index:99;box-shadow:0 10px 30px #0002}
+      .accountMenu.open{display:block}
+      .accountMenu a,.accountMenu button{display:block;width:100%;padding:10px;text-align:left;background:none;border:0}
+      .premiumBox{border:2px solid #d6a900;border-radius:16px;padding:18px;background:linear-gradient(135deg,#fffdf1,#fff)}
+      .premiumCard{border:2px solid #e2bd35!important;box-shadow:0 5px 20px #d6a90022!important;position:relative}
+      .premiumTag{display:inline-block;background:#171717;color:#ffd84d;border-radius:20px;padding:5px 10px;font-size:11px;font-weight:800;margin-bottom:7px}
+      .statusBadge{display:inline-block;padding:5px 9px;border-radius:20px;background:#f1f3f5;font-size:12px}
+      .warningBox{background:#fff8e1;border:1px solid #e7c34c;border-radius:12px;padding:16px;margin:15px 0}
+      .dangerBox{background:#fff1f1;border:1px solid #e8aaaa;border-radius:12px;padding:15px}
+      .successBox{background:#eefbf1;border:1px solid #9dd7a8;border-radius:12px;padding:15px}
+      .photoPreview{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:10px}
+      .photoPreview img{width:100%;height:90px;object-fit:cover;border-radius:8px}
+      .galleryMain{width:100%;max-height:520px;object-fit:contain;border-radius:14px;background:#f4f4f4}
+      .thumbs{display:flex;gap:8px;margin-top:10px;overflow:auto}
+      .thumbs img{width:80px;height:65px;object-fit:cover;border-radius:8px;cursor:pointer}
+      .rulesList li{margin:8px 0}
+      .moderationRow{border-bottom:1px solid #eee;padding:15px 0}
+      .phoneCard{border:1px solid #94c5e8;background:#eef8ff;padding:15px;border-radius:12px}
+      .premiumSection{margin:25px 0}
+      .premiumSection h2{font-size:24px}
+    </style>
   `;
 }
 
-window.toggleAccountMenu = event => {
-  event?.stopPropagation();
-  document.querySelector('#accountMenu')?.classList.toggle('open');
+window.toggleAccountMenu = () => {
+  $('#accountMenu')?.classList.toggle('open');
 };
 
-document.addEventListener('click', event => {
-  const wrap = document.querySelector('.accountWrap');
-
-  if (wrap && !wrap.contains(event.target)) {
-    document.querySelector('#accountMenu')?.classList.remove('open');
-  }
-});
-
-window.searchNow = () => {
-  const q = document.querySelector('#q')?.value.trim() || '';
-  location.hash = `#/search?q=${encodeURIComponent(q)}`;
+window.doSearch = e => {
+  e.preventDefault();
+  const q = $('#topSearch')?.value.trim() || '';
+  location.hash = '#/search?q=' + encodeURIComponent(q);
 };
 
-/* =========================================================
-   FOTOĞRAFLAR
-========================================================= */
+window.logout = async () => {
+  await supabase.auth.signOut();
+  location.hash = '#/';
+  await render();
+};
 
-async function firstImage(listingId) {
-  const { data } = await supabase
-    .from('listing_images')
-    .select('image_url')
-    .eq('listing_id', listingId)
-    .order('sort_order', { ascending:true })
-    .limit(1)
-    .maybeSingle();
-
-  return data?.image_url || null;
-}
-
-async function addFirstImages(listings = []) {
-  return Promise.all(
-    listings.map(async listing => ({
-      ...listing,
-      image: await firstImage(listing.id)
-    }))
-  );
-}
-
-/* =========================================================
+/* =========================
    İLAN KARTI
-========================================================= */
+========================= */
 
-function card(x) {
+function card(item) {
+  const cover =
+    item.listing_images?.find(x => x.is_cover) ||
+    item.listing_images?.[0];
+
+  const premium = item.sellerPremium === true;
+
   return `
-    <a class="card" href="#/listing/${x.id}">
-      <div class="pic">
+    <a
+      class="card ${premium ? 'premiumCard' : ''}"
+      href="#/listing/${item.id}"
+    >
+      ${
+        premium
+          ? `<div class="premiumTag">💎 PREMIUM İLAN</div>`
+          : ''
+      }
+
+      <div class="cardimg">
         ${
-          x.image
-            ? `<img src="${safe(x.image)}" alt="${safe(x.title)}">`
-            : '📷'
+          cover?.image_url
+            ? `<img src="${safe(cover.image_url)}" alt="">`
+            : `<div class="noimg">📷</div>`
         }
       </div>
 
-      <div class="pad">
-        <b>${safe(x.title)}</b>
-        <strong>${money(x.price)}</strong>
-
-        <span>
-          ${safe(x.city || '')}
-          ${x.district ? ` / ${safe(x.district)}` : ''}
-        </span>
+      <div class="cardbody">
+        <h3>${safe(item.title)}</h3>
+        <strong>${money(item.price)}</strong>
+        <p>${safe(item.city || '')} ${item.district ? '/ '+safe(item.district) : ''}</p>
       </div>
     </a>
   `;
 }
 
-/* =========================================================
-   İLANLAR
-========================================================= */
-
-async function getListings({q='',category=''}={}) {
+async function getActiveListings(q='') {
   let query = supabase
     .from('listings')
-    .select('*')
+    .select(`
+      *,
+      listing_images(
+        image_url,
+        is_cover,
+        sort_order
+      ),
+      profiles!listings_user_id_fkey(
+        premium_until
+      )
+    `)
     .eq('status','active')
+    .gt('expires_at',new Date().toISOString())
     .order('created_at',{ascending:false});
 
-  if (q) {
-    query = query.ilike('title',`%${q}%`);
-  }
+  if (q) query = query.ilike('title',`%${q}%`);
 
-  if (category) {
-    query = query.eq('category',category);
-  }
-
-  const {data,error} = await query;
+  const { data,error } = await query;
 
   if (error) {
     console.error(error);
     return [];
   }
 
-  return addFirstImages(data || []);
+  return (data || []).map(x => ({
+    ...x,
+    sellerPremium:
+      x.profiles?.premium_until &&
+      new Date(x.profiles.premium_until) > new Date()
+  }));
 }
 
-/* =========================================================
+/* =========================
    ANA SAYFA
-========================================================= */
+========================= */
 
 async function home() {
-  const listings = await getListings();
+  const listings = await getActiveListings();
+
+  const premium = listings.filter(x => x.sellerPremium);
+  const normal = listings.filter(x => !x.sellerPremium);
 
   return shell(`
     <section class="hero">
-      <div>
-        <h1>
-          İkinci elin
-          <em>güvenli ve kolay pazarı.</em>
-        </h1>
-
-        <p>
-          Kullanmadıklarını sat,
-          aradığını uygun fiyata bul.
-        </p>
-      </div>
+      <h1>PazarElden</h1>
+      <p>Al, sat, değerlendir. İkinci elin güvenli pazarı.</p>
+      <a class="cta" href="#/ilan-ver">Ücretsiz İlan Ver</a>
     </section>
 
     <section>
-      <div class="sectionHead">
-        <h2>Kategoriler</h2>
-      </div>
+      <h2>Kategoriler</h2>
 
       <div class="cats">
-        ${cats.map((cat,i)=>`
-          <a href="#/category/${encodeURIComponent(cat)}">
-            <i>${icons[i]}</i>
-            <b>${safe(cat)}</b>
+        ${categories.map(c => `
+          <a href="#/search?q=${encodeURIComponent(c[0])}">
+            <span>${c[1]}</span>
+            <b>${c[0]}</b>
           </a>
         `).join('')}
       </div>
     </section>
 
+    ${
+      premium.length
+        ? `
+          <section class="premiumSection premiumBox">
+            <h2>💎 Premium İlanlar</h2>
+            <p>Premium satıcılardan öne çıkan ilanlar.</p>
+
+            <div class="grid">
+              ${premium.map(card).join('')}
+            </div>
+          </section>
+        `
+        : ''
+    }
+
     <section>
-      <div class="sectionHead">
-        <h2>Son İlanlar</h2>
-        <span>${listings.length} ilan</span>
-      </div>
+      <h2>Son İlanlar</h2>
 
       <div class="grid">
         ${
-          listings.length
-            ? listings.slice(0,20).map(card).join('')
-            : `<div class="empty">Henüz ilan bulunmuyor.</div>`
+          normal.length
+            ? normal.map(card).join('')
+            : `<div class="empty">Henüz normal ilan bulunmuyor.</div>`
         }
       </div>
     </section>
   `);
 }
 
-/* =========================================================
-   ARAMA
-========================================================= */
+/* =========================
+   KAYIT / GİRİŞ
+========================= */
 
-async function searchPage() {
-  const params = new URLSearchParams(
-    location.hash.split('?')[1] || ''
+function authPage(mode) {
+  const signup = mode === 'signup';
+
+  return shell(`
+    <div class="panel form authbox">
+      <h1>${signup ? 'Üye Ol' : 'Giriş Yap'}</h1>
+
+      <input id="email" type="email" placeholder="E-posta">
+      <input id="password" type="password" placeholder="Şifre">
+
+      ${
+        signup
+          ? `
+            <input
+              id="phone"
+              type="tel"
+              placeholder="Telefon: 05XX XXX XX XX"
+            >
+
+            <div class="warningBox">
+              <label>
+                <input type="checkbox" id="termsAccept">
+                Kullanım Koşullarını okudum ve kabul ediyorum.
+              </label>
+
+              <br><br>
+
+              <label>
+                <input type="checkbox" id="rulesAccept">
+                PazarElden v1.0 Site ve İlan Kurallarını okudum ve kabul ediyorum.
+              </label>
+
+              <br><br>
+
+              <label>
+                <input type="checkbox" id="privacyAccept">
+                Gizlilik/KVKK Aydınlatma Metnini okudum.
+              </label>
+            </div>
+          `
+          : ''
+      }
+
+      <button onclick="${signup ? 'signup()' : 'login()'}">
+        ${signup ? 'Üye Ol' : 'Giriş Yap'}
+      </button>
+
+      <p id="authMsg"></p>
+
+      <p>
+        ${
+          signup
+            ? `Zaten hesabınız var mı? <a href="#/login">Giriş yapın</a>`
+            : `Hesabınız yok mu? <a href="#/signup">Üye olun</a>`
+        }
+      </p>
+    </div>
+  `);
+}
+
+window.signup = async () => {
+  const email = $('#email')?.value.trim();
+  const password = $('#password')?.value;
+  const phone = $('#phone')?.value.trim();
+  const msg = $('#authMsg');
+
+  if (!email || !password || !phone) {
+    msg.textContent = 'E-posta, şifre ve telefon zorunludur.';
+    return;
+  }
+
+  if (
+    !$('#termsAccept')?.checked ||
+    !$('#rulesAccept')?.checked ||
+    !$('#privacyAccept')?.checked
+  ) {
+    msg.textContent =
+      'Zorunlu koşulları ve bilgilendirmeleri onaylamalısınız.';
+    return;
+  }
+
+  msg.textContent = 'Hesap oluşturuluyor...';
+
+  const { error } = await supabase.auth.signUp({
+    email,
+    password,
+    options:{
+      data:{
+        phone,
+        terms_accepted:true,
+        rules_accepted:true,
+        privacy_acknowledged:true,
+        rules_version:RULES_VERSION
+      }
+    }
+  });
+
+  if (error) {
+    msg.textContent = error.message;
+    return;
+  }
+
+  msg.textContent =
+    'Üyelik oluşturuldu. E-posta doğrulaması gerekiyorsa e-postanızı kontrol edin.';
+};
+
+window.login = async () => {
+  const email = $('#email')?.value.trim();
+  const password = $('#password')?.value;
+  const msg = $('#authMsg');
+
+  const { error } =
+    await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
+  if (error) {
+    msg.textContent = error.message;
+    return;
+  }
+
+  await loadSession();
+  location.hash = '#/';
+};
+
+/* =========================
+   İLAN VER
+========================= */
+
+function newListingPage() {
+  if (!currentUser) {
+    location.hash = '#/login';
+    return shell(`<div class="panel">Giriş yapmalısınız.</div>`);
+  }
+
+  const blocked =
+    currentProfile?.listing_blocked_until &&
+    new Date(currentProfile.listing_blocked_until) > new Date();
+
+  if (blocked) {
+    return shell(`
+      <div class="dangerBox">
+        <h2>⛔ İlan verme kısıtlaması</h2>
+        <p>
+          Yeni ilan verme hakkınız
+          <b>${dateText(currentProfile.listing_blocked_until)}</b>
+          tarihine kadar kısıtlanmıştır.
+        </p>
+      </div>
+    `);
+  }
+
+  return shell(`
+    <section>
+      <h1>Yeni İlan Ver</h1>
+
+      <div class="warningBox">
+        <h3>⚠️ İlan vermeden önce</h3>
+
+        <p>
+          Müstehcen/küfürlü içerik, telefon veya açık iletişim
+          bilgisi, sahte/çalıntı/yasaklı ürün, yanıltıcı bilgi
+          ve ürüne ait olmayan fotoğraflar yasaktır.
+        </p>
+
+        <p>
+          İlanınız yayınlanmadan önce kontrol edilir.
+          Kurallara aykırı ilanlar reddedilir.
+          <b>5 ihlalde 72 saat ilan verme kısıtlaması uygulanır.</b>
+        </p>
+
+        <a href="#/rules">Tüm İlan Kurallarını Gör</a>
+      </div>
+
+      <div class="panel form">
+        <input id="title" placeholder="İlan başlığı">
+
+        <input
+          id="price"
+          type="number"
+          min="0"
+          placeholder="Fiyat"
+        >
+
+        <select id="category">
+          <option value="">Kategori seçin</option>
+          ${categories.map(c => `
+            <option value="${safe(c[0])}">${c[1]} ${c[0]}</option>
+          `).join('')}
+        </select>
+
+        <input id="city" placeholder="Şehir">
+        <input id="district" placeholder="İlçe">
+
+        <select id="condition">
+          <option value="İkinci El">İkinci El</option>
+          <option value="Sıfır">Sıfır</option>
+        </select>
+
+        <textarea
+          id="description"
+          maxlength="5000"
+          placeholder="Ürününüzü açıklayın..."
+        ></textarea>
+
+        <label>
+          <b>Fotoğraflar — en fazla 5 adet</b>
+        </label>
+
+        <input
+          id="photos"
+          type="file"
+          accept="image/*"
+          multiple
+          onchange="previewPhotos()"
+        >
+
+        <div id="photoPreview" class="photoPreview"></div>
+
+        <p>
+          İlk fotoğraf otomatik olarak kapak fotoğrafı olacaktır.
+        </p>
+
+        <label>
+          <input type="checkbox" id="listingRules">
+          İlan verme kurallarını okudum ve kabul ediyorum.
+        </label>
+
+        <button onclick="publishListing()">
+          İncelemeye Gönder
+        </button>
+
+        <p id="publishMsg"></p>
+      </div>
+    </section>
+  `);
+}
+
+window.previewPhotos = () => {
+  const files = [...($('#photos')?.files || [])];
+  const box = $('#photoPreview');
+
+  if (files.length > 5) {
+    alert('En fazla 5 fotoğraf seçebilirsiniz.');
+    $('#photos').value = '';
+    box.innerHTML = '';
+    return;
+  }
+
+  box.innerHTML = files.map((f,i) => `
+    <div>
+      <img src="${URL.createObjectURL(f)}">
+      <small>${i === 0 ? '⭐ Kapak' : `Fotoğraf ${i+1}`}</small>
+    </div>
+  `).join('');
+};
+
+window.publishListing = async () => {
+  if (!currentUser) return;
+
+  const msg = $('#publishMsg');
+
+  if (!$('#listingRules')?.checked) {
+    msg.textContent =
+      'İlan kurallarını kabul etmelisiniz.';
+    return;
+  }
+
+  const title = $('#title')?.value.trim();
+  const price = Number($('#price')?.value);
+  const category = $('#category')?.value;
+  const city = $('#city')?.value.trim();
+  const district = $('#district')?.value.trim();
+  const condition = $('#condition')?.value;
+  const description = $('#description')?.value.trim();
+  const files = [...($('#photos')?.files || [])];
+
+  if (!title || !price || !category || !description) {
+    msg.textContent =
+      'Başlık, fiyat, kategori ve açıklama zorunludur.';
+    return;
+  }
+
+  if (files.length > 5) {
+    msg.textContent = 'En fazla 5 fotoğraf yükleyebilirsiniz.';
+    return;
+  }
+
+  msg.textContent = 'İlanınız hazırlanıyor...';
+
+  const { data:item,error } = await supabase
+    .from('listings')
+    .insert({
+      user_id:currentUser.id,
+      title,
+      price,
+      category,
+      city,
+      district,
+      condition,
+      description,
+      status:'pending',
+      moderation_status:'pending',
+      submitted_at:new Date().toISOString(),
+      rules_version:RULES_VERSION
+    })
+    .select()
+    .single();
+
+  if (error) {
+    msg.textContent = 'İlan oluşturulamadı: ' + error.message;
+    return;
+  }
+
+  for (let i=0; i<files.length; i++) {
+    const file = files[i];
+
+    const ext =
+      file.name.split('.').pop()?.toLowerCase() || 'jpg';
+
+    const path =
+      `${currentUser.id}/${item.id}/${crypto.randomUUID()}.${ext}`;
+
+    const { error:uploadError } =
+      await supabase.storage
+        .from('listing-images')
+        .upload(path,file);
+
+    if (uploadError) {
+      console.error(uploadError);
+      continue;
+    }
+
+    const { data:urlData } =
+      supabase.storage
+        .from('listing-images')
+        .getPublicUrl(path);
+
+    await supabase
+      .from('listing_images')
+      .insert({
+        listing_id:item.id,
+        image_url:urlData.publicUrl,
+        is_cover:i === 0,
+        sort_order:i
+      });
+  }
+
+  msg.innerHTML = `
+    <div class="successBox">
+      <b>🕐 İlanınız incelemeye gönderildi.</b>
+      <p>
+        Admin veya moderatör onayından sonra yayınlanacaktır.
+        ${
+          isPremium()
+            ? 'Premium ilanınızın 30 günlük süresi onaylandığında başlayacaktır.'
+            : '72 saatlik ücretsiz yayın süreniz onaylandığında başlayacaktır.'
+        }
+      </p>
+    </div>
+  `;
+
+  setTimeout(() => {
+    location.hash = '#/profile';
+  },1800);
+};
+
+/* =========================
+   İLAN DETAY
+========================= */
+
+async function listingPage(id) {
+  const { data:item,error } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('id',id)
+    .maybeSingle();
+
+  if (error || !item)
+    return shell(`<div class="panel">İlan bulunamadı.</div>`);
+
+  const own = currentUser?.id === item.user_id;
+
+  if (
+    item.status !== 'active' &&
+    !own &&
+    !isModerator()
+  ) {
+    return shell(`<div class="panel">Bu ilan yayında değil.</div>`);
+  }
+
+  try {
+    await supabase.rpc('register_listing_view',{
+      p_listing_id:id,
+      p_visitor_id:visitorId()
+    });
+  } catch {}
+
+  const { data:images } = await supabase
+    .from('listing_images')
+    .select('*')
+    .eq('listing_id',id)
+    .order('sort_order');
+
+  const { data:seller } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id',item.user_id)
+    .maybeSingle();
+
+  const { count:activeCount } = await supabase
+    .from('listings')
+    .select('id',{count:'exact',head:true})
+    .eq('user_id',item.user_id)
+    .eq('status','active')
+    .gt('expires_at',new Date().toISOString());
+
+  const { data:counts } = await supabase.rpc(
+    'get_listing_counts',
+    {p_listing_id:id}
   );
 
-  const q = params.get('q') || '';
-  const listings = await getListings({q});
+  const countData = Array.isArray(counts) ? counts[0] : counts;
+
+  const [rankIcon,rank] =
+    rankInfo(activeCount || 0,seller);
+
+  const premium = isPremium(seller);
+
+  const cover =
+    images?.find(x => x.is_cover) ||
+    images?.[0];
+
+  return shell(`
+    <section class="detail">
+      <div>
+        ${
+          premium
+            ? `<div class="premiumTag">💎 PREMIUM İLAN</div>`
+            : ''
+        }
+
+        ${
+          cover
+            ? `<img id="mainPhoto" class="galleryMain" src="${safe(cover.image_url)}">`
+            : `<div class="noimg">📷 Fotoğraf yok</div>`
+        }
+
+        ${
+          images?.length
+            ? `
+              <div class="thumbs">
+                ${images.map(img => `
+                  <img
+                    src="${safe(img.image_url)}"
+                    onclick="document.querySelector('#mainPhoto').src=this.src"
+                  >
+                `).join('')}
+              </div>
+            `
+            : ''
+        }
+      </div>
+
+      <aside class="panel">
+        <span class="statusBadge">${statusText(item.status)}</span>
+
+        <h1>${safe(item.title)}</h1>
+        <h2>${money(item.price)}</h2>
+
+        <p>${safe(item.city || '')} / ${safe(item.district || '')}</p>
+        <p>Durum: <b>${safe(item.condition || '-')}</b></p>
+
+        <hr>
+
+        <h3>Satıcı</h3>
+
+        <a href="#/seller/${item.user_id}">
+          <b>${safe(seller?.full_name || 'PazarElden kullanıcısı')}</b>
+        </a>
+
+        <p>${rankIcon} ${safe(rank)}</p>
+        <p>${activeCount || 0} aktif ilan</p>
+
+        ${
+          item.status === 'active'
+            ? `
+              <p>
+                👁️ ${countData?.view_count || 0}
+                &nbsp; ♡ ${countData?.favorite_count || 0}
+              </p>
+            `
+            : ''
+        }
+
+        ${
+          currentUser && !own
+            ? `
+              <button onclick="toggleFavorite('${item.id}')">
+                ♡ Favorilere Ekle
+              </button>
+
+              <button onclick="openConversation('${item.id}','${item.user_id}')">
+                Mesaj Gönder
+              </button>
+
+              <button onclick="reportListing('${item.id}','${item.user_id}')">
+                ⚠️ Şikâyet Et
+              </button>
+            `
+            : ''
+        }
+
+        ${
+          own
+            ? ownerActions(item)
+            : ''
+        }
+
+        ${
+          isModerator() && item.status === 'pending'
+            ? `
+              <hr>
+              <h3>🛡️ Moderasyon</h3>
+
+              <button onclick="approveListing('${item.id}')">
+                ✅ İlanı Onayla
+              </button>
+
+              <button onclick="rejectListing('${item.id}')">
+                ❌ İlanı Reddet
+              </button>
+            `
+            : ''
+        }
+      </aside>
+    </section>
+
+    <section class="panel">
+      <h2>Açıklama</h2>
+      <p>${safe(item.description || 'Açıklama yok.')}</p>
+    </section>
+
+    ${
+      item.rejection_reason && own
+        ? `
+          <div class="dangerBox">
+            <b>İlan reddedildi</b>
+            <p>${safe(item.rejection_reason)}</p>
+          </div>
+        `
+        : ''
+    }
+  `);
+}
+
+function ownerActions(item) {
+  if (item.status === 'pending') {
+    return `
+      <div class="warningBox">
+        🕐 İlanınız moderatör onayı bekliyor.
+      </div>
+    `;
+  }
+
+  if (item.status === 'rejected') {
+    return `
+      <div class="dangerBox">
+        <b>İlanınız reddedildi.</b>
+        <p>${safe(item.rejection_reason || '')}</p>
+        <button onclick="resubmitListing('${item.id}')">
+          Düzelttim, Tekrar İncelemeye Gönder
+        </button>
+      </div>
+    `;
+  }
+
+  if (item.status === 'expired') {
+    return `
+      <div class="warningBox">
+        <b>İlanınızın yayın süresi doldu.</b>
+        <button onclick="reactivateListing('${item.id}')">
+          Yeniden Aktifleştir
+        </button>
+        <a class="cta" href="#/premium">💎 Premium'a Geç</a>
+      </div>
+    `;
+  }
+
+  return `
+    <hr>
+    <p><b>Bu ilan size ait.</b></p>
+
+    <button onclick="markSold('${item.id}')">
+      Satıldı Olarak İşaretle
+    </button>
+
+    <button onclick="deleteListing('${item.id}')">
+      İlanı Sil
+    </button>
+  `;
+}
+
+/* =========================
+   MODERASYON
+========================= */
+
+window.approveListing = async id => {
+  if (!confirm('Bu ilanı yayınlamak istediğinize emin misiniz?'))
+    return;
+
+  const { error } =
+    await supabase.rpc('approve_listing',{
+      p_listing_id:id
+    });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert('İlan onaylandı ve yayına alındı.');
+  await render();
+};
+
+window.rejectListing = async id => {
+  const reason = prompt(
+    'İlanın reddedilme nedenini açıkça yazın:'
+  );
+
+  if (!reason) return;
+
+  const { error } =
+    await supabase.rpc('reject_listing',{
+      p_listing_id:id,
+      p_reason:reason
+    });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert('İlan reddedildi.');
+  await render();
+};
+
+window.resubmitListing = async id => {
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      status:'pending',
+      moderation_status:'pending',
+      submitted_at:new Date().toISOString(),
+      rejection_reason:null
+    })
+    .eq('id',id)
+    .eq('user_id',currentUser.id);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert('İlan yeniden incelemeye gönderildi.');
+  await render();
+};
+
+window.reactivateListing = async id => {
+  const { error } = await supabase
+    .from('listings')
+    .update({
+      status:'pending',
+      moderation_status:'pending',
+      submitted_at:new Date().toISOString()
+    })
+    .eq('id',id)
+    .eq('user_id',currentUser.id);
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  alert('İlan yeniden incelemeye gönderildi.');
+  await render();
+};
+
+window.markSold = async id => {
+  if (!confirm('İlan satıldı olarak işaretlensin mi?'))
+    return;
+
+  const { error } = await supabase
+    .from('listings')
+    .update({status:'sold'})
+    .eq('id',id)
+    .eq('user_id',currentUser.id);
+
+  if (error) alert(error.message);
+  else await render();
+};
+
+window.deleteListing = async id => {
+  if (!confirm('İlanı silmek istediğinize emin misiniz?'))
+    return;
+
+  const { error } = await supabase
+    .from('listings')
+    .update({status:'deleted'})
+    .eq('id',id)
+    .eq('user_id',currentUser.id);
+
+  if (error) alert(error.message);
+  else location.hash = '#/profile';
+};
+
+/* =========================
+   ADMIN / MODERATÖR
+========================= */
+
+async function adminPage() {
+  if (!isModerator())
+    return shell(`<div class="panel">Bu sayfaya erişim yetkiniz yok.</div>`);
+
+  const { data:pending } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('status','pending')
+    .order('submitted_at',{ascending:true});
+
+  const { data:reports } = await supabase
+    .from('reports')
+    .select('*')
+    .eq('status','open')
+    .order('created_at',{ascending:false});
 
   return shell(`
     <section>
-      <div class="sectionHead">
-        <h1>Arama Sonuçları</h1>
-        <span>${listings.length} ilan</span>
+      <h1>🛡️ Yönetim Paneli</h1>
+
+      <div class="panel">
+        <h2>Onay Bekleyen İlanlar (${pending?.length || 0})</h2>
+
+        ${
+          pending?.length
+            ? pending.map(x => `
+                <div class="moderationRow">
+                  <b>${safe(x.title)}</b>
+                  <p>${money(x.price)} · ${dateText(x.submitted_at)}</p>
+
+                  <a href="#/listing/${x.id}">
+                    İlanı İncele
+                  </a>
+
+                  <button onclick="approveListing('${x.id}')">
+                    ✅ Onayla
+                  </button>
+
+                  <button onclick="rejectListing('${x.id}')">
+                    ❌ Reddet
+                  </button>
+                </div>
+              `).join('')
+            : `<p>Onay bekleyen ilan yok.</p>`
+        }
       </div>
 
-      ${q ? `<p>"<b>${safe(q)}</b>" için sonuçlar</p>` : ''}
+      <div class="panel">
+        <h2>Şikâyetler (${reports?.length || 0})</h2>
 
-      <div class="grid">
         ${
-          listings.length
-            ? listings.map(card).join('')
-            : `<div class="empty">Sonuç bulunamadı.</div>`
+          reports?.length
+            ? reports.map(r => `
+                <div class="moderationRow">
+                  <b>${safe(r.reason)}</b>
+                  <p>${safe(r.details || '')}</p>
+                  <small>${dateText(r.created_at)}</small>
+                </div>
+              `).join('')
+            : `<p>Açık şikâyet bulunmuyor.</p>`
         }
       </div>
     </section>
   `);
 }
 
-/* =========================================================
-   KATEGORİ
-========================================================= */
+/* =========================
+   PROFİL
+========================= */
 
-async function categoryPage(category) {
-  const listings = await getListings({category});
+async function profilePage() {
+  if (!currentUser)
+    return shell(`<div class="panel">Giriş yapmalısınız.</div>`);
+
+  const { data:listings } = await supabase
+    .from('listings')
+    .select('*,listing_images(image_url,is_cover,sort_order)')
+    .eq('user_id',currentUser.id)
+    .neq('status','deleted')
+    .order('created_at',{ascending:false});
+
+  const [icon,rank] =
+    rankInfo(currentActiveListingCount,currentProfile);
 
   return shell(`
     <section>
-      <div class="sectionHead">
-        <h1>${safe(category)}</h1>
-        <span>${listings.length} ilan</span>
+      <h1>Profilim</h1>
+
+      <div class="panel form">
+        <h2>${safe(currentProfile?.full_name || 'Profil')}</h2>
+
+        <p>${icon} ${safe(rank)}</p>
+
+        ${
+          isPremium()
+            ? `
+              <div class="premiumBox">
+                <b>💎 Premium Üyelik Aktif</b>
+                <p>
+                  ${premiumDays()} gün kaldı.
+                  Bitiş: ${dateText(currentProfile.premium_until)}
+                </p>
+              </div>
+            `
+            : `
+              <a class="cta" href="#/premium">
+                💎 Premium'a Geç
+              </a>
+            `
+        }
+
+        <label>Profil adı</label>
+        <input
+          id="profileName"
+          value="${safe(currentProfile?.full_name || '')}"
+          ${!isAdmin() && currentProfile?.full_name ? 'disabled' : ''}
+        >
+
+        <label>Şehir</label>
+        <input
+          id="profileCity"
+          value="${safe(currentProfile?.city || '')}"
+          maxlength="50"
+        >
+
+        <label>Hakkımda</label>
+        <textarea
+          id="aboutMe"
+          maxlength="500"
+          placeholder="Kendinizden kısaca bahsedin..."
+        >${safe(currentProfile?.about_me || '')}</textarea>
+
+        <button onclick="saveProfile()">
+          Profili Kaydet
+        </button>
+
+        <p id="profileMsg"></p>
+
+        ${
+          currentProfile?.violation_count
+            ? `
+              <p>
+                Kural ihlali:
+                <b>${currentProfile.violation_count}</b>
+              </p>
+            `
+            : ''
+        }
       </div>
+
+      <h2>İlanlarım</h2>
 
       <div class="grid">
         ${
-          listings.length
-            ? listings.map(card).join('')
-            : `<div class="empty">Bu kategoride henüz ilan yok.</div>`
+          listings?.length
+            ? listings.map(x => `
+                <div>
+                  ${card(x)}
+                  <p class="statusBadge">${statusText(x.status)}</p>
+                  ${
+                    x.rejection_reason
+                      ? `<small>Ret nedeni: ${safe(x.rejection_reason)}</small>`
+                      : ''
+                  }
+                </div>
+              `).join('')
+            : `<div class="empty">Henüz ilanınız yok.</div>`
         }
       </div>
     </section>
   `);
 }
 
-/* =========================================================
+window.saveProfile = async () => {
+  const update = {
+    city:$('#profileCity')?.value.trim(),
+    about_me:$('#aboutMe')?.value.trim()
+  };
+
+  if (isAdmin() || !currentProfile?.full_name)
+    update.full_name = $('#profileName')?.value.trim();
+
+  const { error } = await supabase
+    .from('profiles')
+    .update(update)
+    .eq('id',currentUser.id);
+
+  $('#profileMsg').textContent =
+    error ? error.message : 'Profil kaydedildi.';
+
+  if (!error) await loadSession();
+};
+
+/* =========================
+   SATICI PROFİLİ
+========================= */
+
+async function sellerPage(id) {
+  const { data:p } = await supabase
+    .from('profiles')
+    .select('id,full_name,about_me,city,created_at,premium_until,is_admin,is_moderator')
+    .eq('id',id)
+    .maybeSingle();
+
+  if (!p)
+    return shell(`<div class="panel">Satıcı bulunamadı.</div>`);
+
+  const { data:listings } = await supabase
+    .from('listings')
+    .select('*,listing_images(image_url,is_cover,sort_order)')
+    .eq('user_id',id)
+    .eq('status','active')
+    .gt('expires_at',new Date().toISOString());
+
+  const [icon,rank] =
+    rankInfo(listings?.length || 0,p);
+
+  return shell(`
+    <section>
+      <div class="panel">
+        <h1>${safe(p.full_name || 'PazarElden kullanıcısı')}</h1>
+        <p>${icon} ${safe(rank)}</p>
+        <p>📍 ${safe(p.city || 'Şehir belirtilmedi')}</p>
+        <p>📅 Üyelik: ${dateText(p.created_at)}</p>
+
+        <h3>Hakkımda</h3>
+        <p>${safe(p.about_me || 'Henüz bir açıklama eklenmemiş.')}</p>
+
+        <p>
+          <b>${listings?.length || 0}</b> aktif ilan
+        </p>
+
+        <p>
+          🔒 Telefon ve özel bilgiler herkese açık değildir.
+        </p>
+      </div>
+
+      <h2>Satıcının İlanları</h2>
+
+      <div class="grid">
+        ${
+          listings?.length
+            ? listings.map(x => ({
+                ...x,
+                sellerPremium:isPremium(p)
+              })).map(card).join('')
+            : `<div class="empty">Aktif ilan bulunmuyor.</div>`
+        }
+      </div>
+    </section>
+  `);
+}
+
+/* =========================
+   PREMIUM
+========================= */
+
+function premiumPage() {
+  return shell(`
+    <section>
+      <div class="premiumBox">
+        <div class="premiumTag">💎 PAZARELDEN PREMIUM</div>
+
+        <h1>${PREMIUM_PRICE} TL / 30 Gün</h1>
+
+        <h3>Premium avantajları</h3>
+
+        <ul>
+          <li>İlanlar 72 saat yerine 30 gün yayında kalır.</li>
+          <li>Ana sayfada özel 💎 Premium İlanlar bölümünde görünür.</li>
+          <li>Premium ilan kartları normal ilanlardan daha dikkat çekicidir.</li>
+          <li>💎 Premium Satıcı rozeti kazanırsınız.</li>
+          <li>Arama ve kategori sonuçlarında öncelikli gösterim altyapısı sağlanır.</li>
+          <li>Premium olmak moderasyon kurallarını kaldırmaz.</li>
+        </ul>
+
+        ${
+          isPremium()
+            ? `
+              <div class="successBox">
+                <b>Premium üyeliğiniz aktif.</b>
+                <p>${premiumDays()} gün kaldı.</p>
+              </div>
+            `
+            : `
+              <button onclick="premiumComingSoon()">
+                💎 99 TL'ye Premium Al
+              </button>
+            `
+        }
+
+        <p>
+          <small>
+            Otomatik kart çekimi yapılmaz. 30 gün sonunda üyelik
+            kendiliğinden normal üyeliğe döner.
+          </small>
+        </p>
+      </div>
+    </section>
+  `);
+}
+
+window.premiumComingSoon = () => {
+  alert(
+    'Premium altyapısı hazır. Gerçek 99 TL ödeme işlemi ödeme kuruluşu bağlandığında aktif olacaktır.'
+  );
+};
+
+/* =========================
    FAVORİ
-========================================================= */
+========================= */
 
-async function isFavorite(listingId) {
-  if (!currentUser) return false;
+window.toggleFavorite = async listingId => {
+  if (!currentUser) {
+    location.hash = '#/login';
+    return;
+  }
 
-  const {data} = await supabase
+  const { data:existing } = await supabase
     .from('favorites')
     .select('id')
     .eq('user_id',currentUser.id)
     .eq('listing_id',listingId)
     .maybeSingle();
 
-  return !!data;
-}
-
-window.toggleFavorite = async listingId => {
-  if (!currentUser) {
-    location.hash='#/login';
-    return;
-  }
-
-  const favorite = await isFavorite(listingId);
-
-  if (favorite) {
+  if (existing) {
     await supabase
       .from('favorites')
       .delete()
-      .eq('user_id',currentUser.id)
-      .eq('listing_id',listingId);
+      .eq('id',existing.id);
   } else {
     await supabase
       .from('favorites')
@@ -742,952 +1479,126 @@ window.toggleFavorite = async listingId => {
       });
   }
 
-  await render();
+  alert(existing ? 'Favorilerden çıkarıldı.' : 'Favorilere eklendi.');
 };
-
-/* =========================================================
-   İLAN DETAY
-========================================================= */
-
-async function listingDetail(id) {
-  const {data:x,error} = await supabase
-    .from('listings')
-    .select('*')
-    .eq('id',id)
-    .maybeSingle();
-
-  if (error || !x || x.status==='deleted') {
-    return shell(`
-      <section>
-        <div class="empty">İlan bulunamadı.</div>
-      </section>
-    `);
-  }
-
-  const own = currentUser?.id === x.user_id;
-  const admin = isAdmin();
-
-  if (x.status !== 'active' && !own && !admin) {
-    return shell(`
-      <section>
-        <div class="empty">
-          Bu ilan şu anda yayında değil.
-        </div>
-      </section>
-    `);
-  }
-
-  const {data:images} = await supabase
-    .from('listing_images')
-    .select('*')
-    .eq('listing_id',id)
-    .order('sort_order',{ascending:true});
-
-  const {data:seller} = await supabase
-    .from('profiles')
-    .select('full_name,is_admin')
-    .eq('id',x.user_id)
-    .maybeSingle();
-
-  const {count:sellerActiveCount} = await supabase
-    .from('listings')
-    .select('id',{count:'exact',head:true})
-    .eq('user_id',x.user_id)
-    .eq('status','active');
-
-  const sellerName =
-    seller?.full_name || 'PazarElden kullanıcısı';
-
-  const favorite =
-    own ? false : await isFavorite(id);
-
-  let statusText = '';
-
-  if (x.status === 'sold') statusText = '✅ SATILDI';
-  if (x.status === 'inactive') statusText = '⏸️ YAYINDA DEĞİL';
-
-  return shell(`
-    <section>
-      <div class="detail">
-
-        <div>
-          <div class="gallery">
-            ${
-              images?.length
-                ? images.map(img=>`
-                    <img
-                      src="${safe(img.image_url)}"
-                      alt="${safe(x.title)}"
-                    >
-                  `).join('')
-                : `<div class="noimg">📷</div>`
-            }
-          </div>
-
-          <div class="panel" style="width:100%;margin-top:20px">
-            <h2>İlan Açıklaması</h2>
-            <p>${safe(x.description || 'Açıklama eklenmemiş.')}</p>
-          </div>
-        </div>
-
-        <aside>
-          ${statusText ? `<h3>${statusText}</h3>` : ''}
-
-          <h1>${safe(x.title)}</h1>
-
-          <div class="price">
-            ${money(x.price)}
-          </div>
-
-          <p>
-            <b>Konum:</b>
-            ${safe(x.city || '')}
-            ${x.district ? ` / ${safe(x.district)}` : ''}
-          </p>
-
-          <p>
-            <b>Durum:</b>
-            ${safe(x.condition || '')}
-          </p>
-
-          <p><b>Satıcı</b></p>
-
-          <p>${safe(sellerName)}</p>
-
-          <p>
-            ${rankBadge(
-              sellerActiveCount || 0,
-              seller?.is_admin === true
-            )}
-
-            <small>
-              ${sellerActiveCount || 0} aktif ilan
-            </small>
-          </p>
-
-          ${
-            own || admin
-              ? `
-                <div class="actionRow">
-                  <a href="#/edit/${x.id}">
-                    ✏️ Düzenle
-                  </a>
-
-                  ${
-                    x.status !== 'sold'
-                      ? `
-                        <button
-                          class="successButton"
-                          onclick="changeListingStatus('${x.id}','sold')"
-                        >
-                          ✅ Satıldı
-                        </button>
-                      `
-                      : ''
-                  }
-
-                  ${
-                    x.status === 'active'
-                      ? `
-                        <button
-                          class="warningButton"
-                          onclick="changeListingStatus('${x.id}','inactive')"
-                        >
-                          ⏸️ Yayından Kaldır
-                        </button>
-                      `
-                      : `
-                        <button
-                          class="successButton"
-                          onclick="changeListingStatus('${x.id}','active')"
-                        >
-                          ▶️ Tekrar Yayınla
-                        </button>
-                      `
-                  }
-
-                  <button
-                    class="dangerButton"
-                    onclick="deleteListing('${x.id}')"
-                  >
-                    🗑️ İlanı Sil
-                  </button>
-                </div>
-              `
-              : `
-                <button
-                  class="wide"
-                  onclick="toggleFavorite('${x.id}')"
-                >
-                  ${favorite ? '♥ Favorilerden Çıkar' : '♡ Favorilere Ekle'}
-                </button>
-
-                <button
-                  class="wide"
-                  onclick="startConversation('${x.id}','${x.user_id}')"
-                >
-                  Satıcıya Mesaj Gönder
-                </button>
-              `
-          }
-        </aside>
-      </div>
-    </section>
-  `);
-}
-
-/* =========================================================
-   İLAN DURUMU
-========================================================= */
-
-window.changeListingStatus = async (id,status) => {
-  if (!currentUser) return;
-
-  const messages = {
-    active:'İlan tekrar yayınlansın mı?',
-    inactive:'İlan yayından kaldırılsın mı?',
-    sold:'İlan satıldı olarak işaretlensin mi?'
-  };
-
-  if (!confirm(messages[status] || 'İşlem yapılsın mı?')) {
-    return;
-  }
-
-  let query = supabase
-    .from('listings')
-    .update({status})
-    .eq('id',id);
-
-  if (!isAdmin()) {
-    query = query.eq('user_id',currentUser.id);
-  }
-
-  const {error} = await query;
-
-  if (error) {
-    alert('İşlem yapılamadı: '+error.message);
-    return;
-  }
-
-  await loadSession();
-  await render();
-};
-
-/* =========================================================
-   İLAN SİL
-========================================================= */
-
-window.deleteListing = async id => {
-  if (!currentUser) return;
-
-  if (!confirm('Bu ilanı silmek istediğinize emin misiniz?')) {
-    return;
-  }
-
-  let query = supabase
-    .from('listings')
-    .update({status:'deleted'})
-    .eq('id',id);
-
-  if (!isAdmin()) {
-    query = query.eq('user_id',currentUser.id);
-  }
-
-  const {error} = await query;
-
-  if (error) {
-    alert('İlan silinemedi: '+error.message);
-    return;
-  }
-
-  await loadSession();
-
-  location.hash =
-    isAdmin() ? '#/admin' : '#/profile';
-};
-
-/* =========================================================
-   İLAN DÜZENLE
-========================================================= */
-
-async function editListingPage(id) {
-  if (!currentUser) {
-    location.hash='#/login';
-    return '';
-  }
-
-  const {data:x} = await supabase
-    .from('listings')
-    .select('*')
-    .eq('id',id)
-    .maybeSingle();
-
-  if (!x) {
-    return shell(`<div class="empty">İlan bulunamadı.</div>`);
-  }
-
-  if (x.user_id !== currentUser.id && !isAdmin()) {
-    return shell(`<div class="empty">Bu ilanı düzenleme yetkiniz yok.</div>`);
-  }
-
-  return shell(`
-    <section>
-      <div class="panel">
-        <h1>✏️ İlanı Düzenle</h1>
-
-        <label>Başlık</label>
-        <input id="editTitle" value="${safe(x.title)}">
-
-        <label>Kategori</label>
-        <select id="editCategory">
-          ${cats.map(cat=>`
-            <option
-              value="${safe(cat)}"
-              ${x.category===cat ? 'selected' : ''}
-            >
-              ${safe(cat)}
-            </option>
-          `).join('')}
-        </select>
-
-        <label>Fiyat</label>
-        <input
-          id="editPrice"
-          type="number"
-          value="${safe(x.price)}"
-        >
-
-        <label>Ürün Durumu</label>
-        <select id="editCondition">
-          ${['Sıfır','Yeni gibi','İyi','Kullanılmış'].map(c=>`
-            <option
-              value="${c}"
-              ${x.condition===c ? 'selected' : ''}
-            >
-              ${c}
-            </option>
-          `).join('')}
-        </select>
-
-        <label>İl</label>
-        <input id="editCity" value="${safe(x.city || '')}">
-
-        <label>İlçe</label>
-        <input id="editDistrict" value="${safe(x.district || '')}">
-
-        <label>Açıklama</label>
-        <textarea id="editDescription">${safe(x.description || '')}</textarea>
-
-        <button onclick="saveListingEdit('${x.id}')">
-          Değişiklikleri Kaydet
-        </button>
-
-        <p id="editMsg"></p>
-      </div>
-    </section>
-  `);
-}
-
-window.saveListingEdit = async id => {
-  const msg = document.querySelector('#editMsg');
-
-  const title = document.querySelector('#editTitle')?.value.trim();
-  const category = document.querySelector('#editCategory')?.value;
-  const price = Number(document.querySelector('#editPrice')?.value || 0);
-  const condition = document.querySelector('#editCondition')?.value;
-  const city = document.querySelector('#editCity')?.value.trim();
-  const district = document.querySelector('#editDistrict')?.value.trim();
-  const description = document.querySelector('#editDescription')?.value.trim();
-
-  if (!title || !category || price<=0) {
-    msg.textContent='Başlık, kategori ve fiyat zorunludur.';
-    return;
-  }
-
-  let query = supabase
-    .from('listings')
-    .update({
-      title,
-      category,
-      price,
-      condition,
-      city,
-      district,
-      description
-    })
-    .eq('id',id);
-
-  if (!isAdmin()) {
-    query=query.eq('user_id',currentUser.id);
-  }
-
-  const {error}=await query;
-
-  if (error) {
-    msg.textContent='Kaydedilemedi: '+error.message;
-    return;
-  }
-
-  location.hash=`#/listing/${id}`;
-};
-
-/* =========================================================
-   ÜYELİK
-========================================================= */
-
-function auth(kind) {
-  return shell(`
-    <div class="auth panel">
-      <h1>${kind==='login' ? 'Giriş Yap' : 'Üye Ol'}</h1>
-
-      <input id="email" type="email" placeholder="E-posta">
-      <input id="pass" type="password" placeholder="Şifre">
-
-      <button onclick="doAuth('${kind}')">
-        ${kind==='login' ? 'Giriş Yap' : 'Hesap Oluştur'}
-      </button>
-
-      ${
-        kind==='signup'
-          ? `<p>Profil adınızı giriş yaptıktan sonra bir kez belirleyebilirsiniz.</p>`
-          : ''
-      }
-
-      <p id="authMsg"></p>
-    </div>
-  `);
-}
-
-window.doAuth = async kind => {
-  const email=document.querySelector('#email')?.value.trim();
-  const password=document.querySelector('#pass')?.value;
-  const msg=document.querySelector('#authMsg');
-
-  if (!email || !password) {
-    msg.textContent='E-posta ve şifreyi girin.';
-    return;
-  }
-
-  if (kind==='login') {
-    const {error}=await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if (error) {
-      msg.textContent=error.message;
-      return;
-    }
-
-    await loadSession();
-    location.hash='#/';
-    await render();
-    return;
-  }
-
-  const {data,error}=await supabase.auth.signUp({
-    email,
-    password
-  });
-
-  if (error) {
-    msg.textContent=error.message;
-    return;
-  }
-
-  if (data.user && data.session) {
-    const {data:existing}=await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id',data.user.id)
-      .maybeSingle();
-
-    if (!existing) {
-      await supabase.from('profiles').insert({
-        id:data.user.id,
-        full_name:''
-      });
-    }
-  }
-
-  msg.textContent=
-    'Kayıt oluşturuldu. Giriş yaptıktan sonra profil adınızı belirleyebilirsiniz.';
-};
-
-window.logout = async () => {
-  await supabase.auth.signOut();
-
-  currentUser=null;
-  currentProfile=null;
-  currentActiveListingCount=0;
-
-  location.hash='#/';
-  await render();
-};
-
-/* =========================================================
-   PROFİL
-========================================================= */
-
-async function profilePage() {
-  if (!currentUser) {
-    location.hash='#/login';
-    return '';
-  }
-
-  const {data}=await supabase
-    .from('listings')
-    .select('*')
-    .eq('user_id',currentUser.id)
-    .neq('status','deleted')
-    .order('created_at',{ascending:false});
-
-  const listings=await addFirstImages(data || []);
-
-  const chosenName=currentProfile?.full_name?.trim() || '';
-
-  const nameArea=isAdmin()
-    ? `
-      <label>Profil adı</label>
-      <input id="profileName" value="${safe(chosenName)}">
-      <button onclick="saveProfileName()">Profil Adını Kaydet</button>
-      <p id="profileMsg"></p>
-      <p>👑 Yönetici olarak profil adınızı değiştirebilirsiniz.</p>
-    `
-    : chosenName
-      ? `
-        <label>Profil adı</label>
-        <div class="nameLocked">${safe(chosenName)} 🔒</div>
-        <p>Profil adı bir kez belirlenir ve değiştirilemez.</p>
-      `
-      : `
-        <label>Profil adı</label>
-        <input id="profileName" placeholder="Profil adınız">
-        <p>Bu adı yalnızca bir kez belirleyebilirsiniz.</p>
-        <button onclick="saveProfileName()">Profil Adını Kaydet</button>
-        <p id="profileMsg"></p>
-      `;
-
-  return shell(`
-    <section>
-      <div class="panel">
-        <h1>Profilim</h1>
-
-        <div class="profileSummary">
-          <div>
-            <strong>${safe(chosenName || 'Profil adınızı belirleyin')}</strong>
-            ${rankBadge(currentActiveListingCount,isAdmin())}
-          </div>
-
-          <div>
-            ${currentActiveListingCount} aktif ilan
-          </div>
-        </div>
-
-        <p>
-          <b>E-posta:</b>
-          ${safe(currentUser.email || '')}
-        </p>
-
-        ${nameArea}
-      </div>
-
-      <div class="sectionHead">
-        <h2>İlanlarım</h2>
-        <span>${listings.length} ilan</span>
-      </div>
-
-      <div class="grid">
-        ${
-          listings.length
-            ? listings.map(card).join('')
-            : `<div class="empty">Henüz ilanınız bulunmuyor.</div>`
-        }
-      </div>
-    </section>
-  `);
-}
-
-window.saveProfileName=async()=>{
-  const name=document.querySelector('#profileName')?.value.trim();
-  const msg=document.querySelector('#profileMsg');
-
-  if (!name) {
-    msg.textContent='Profil adı boş bırakılamaz.';
-    return;
-  }
-
-  if (!isAdmin() && currentProfile?.full_name?.trim()) {
-    msg.textContent='Profil adınız daha önce belirlenmiş.';
-    return;
-  }
-
-  if (!isAdmin()) {
-    if (!confirm(`Profil adınız "${name}" olacak ve daha sonra değiştirilemeyecek. Onaylıyor musunuz?`)) {
-      return;
-    }
-  }
-
-  let result;
-
-  if (currentProfile) {
-    result=await supabase
-      .from('profiles')
-      .update({full_name:name})
-      .eq('id',currentUser.id);
-  } else {
-    result=await supabase
-      .from('profiles')
-      .insert({
-        id:currentUser.id,
-        full_name:name
-      });
-  }
-
-  if (result.error) {
-    msg.textContent='Kaydedilemedi: '+result.error.message;
-    return;
-  }
-
-  await loadSession();
-  await render();
-};
-
-/* =========================================================
-   İLAN VER
-========================================================= */
-
-function newListingPage() {
-  if (!currentUser) {
-    location.hash='#/login';
-    return '';
-  }
-
-  return shell(`
-    <section>
-      <div class="panel">
-        <h1>Ücretsiz İlan Ver</h1>
-
-        <label>İlan başlığı</label>
-        <input id="listingTitle">
-
-        <label>Kategori</label>
-        <select id="listingCategory">
-          <option value="">Kategori seçin</option>
-          ${cats.map(c=>`<option value="${safe(c)}">${safe(c)}</option>`).join('')}
-        </select>
-
-        <label>Fiyat</label>
-        <input id="listingPrice" type="number">
-
-        <label>Ürün durumu</label>
-        <select id="listingCondition">
-          <option>Sıfır</option>
-          <option>Yeni gibi</option>
-          <option>İyi</option>
-          <option>Kullanılmış</option>
-        </select>
-
-        <label>İl</label>
-        <input id="listingCity">
-
-        <label>İlçe</label>
-        <input id="listingDistrict">
-
-        <label>Açıklama</label>
-        <textarea id="listingDescription"></textarea>
-
-        <label>Fotoğraflar</label>
-        <input id="listingPhotos" type="file" accept="image/*" multiple>
-
-        <button onclick="publishListing()">İlanı Yayınla</button>
-
-        <p id="listingMsg"></p>
-      </div>
-    </section>
-  `);
-}
-
-window.publishListing=async()=>{
-  const msg=document.querySelector('#listingMsg');
-
-  const title=document.querySelector('#listingTitle')?.value.trim();
-  const category=document.querySelector('#listingCategory')?.value;
-  const price=Number(document.querySelector('#listingPrice')?.value || 0);
-  const condition=document.querySelector('#listingCondition')?.value;
-  const city=document.querySelector('#listingCity')?.value.trim();
-  const district=document.querySelector('#listingDistrict')?.value.trim();
-  const description=document.querySelector('#listingDescription')?.value.trim();
-
-  const files=Array.from(
-    document.querySelector('#listingPhotos')?.files || []
-  );
-
-  if (!title || !category || !price) {
-    msg.textContent='Başlık, kategori ve fiyat zorunludur.';
-    return;
-  }
-
-  msg.textContent='İlan yayınlanıyor...';
-
-  const {data:listing,error}=await supabase
-    .from('listings')
-    .insert({
-      user_id:currentUser.id,
-      title,
-      category,
-      price,
-      condition,
-      city,
-      district,
-      description,
-      status:'active'
-    })
-    .select()
-    .single();
-
-  if (error) {
-    msg.textContent='İlan oluşturulamadı: '+error.message;
-    return;
-  }
-
-  for (let i=0;i<files.length;i++) {
-    const file=files[i];
-    const ext=file.name.split('.').pop() || 'jpg';
-
-    const path=
-      `${currentUser.id}/${listing.id}/${Date.now()}-${i}.${ext}`;
-
-    const {error:uploadError}=await supabase
-      .storage
-      .from('listing-images')
-      .upload(path,file);
-
-    if (uploadError) continue;
-
-    const {data:urlData}=supabase
-      .storage
-      .from('listing-images')
-      .getPublicUrl(path);
-
-    await supabase
-      .from('listing_images')
-      .insert({
-        listing_id:listing.id,
-        image_url:urlData.publicUrl,
-        sort_order:i
-      });
-  }
-
-  await loadSession();
-  location.hash=`#/listing/${listing.id}`;
-};
-
-/* =========================================================
-   FAVORİLER
-========================================================= */
 
 async function favoritesPage() {
-  if (!currentUser) {
-    location.hash='#/login';
-    return '';
-  }
+  if (!currentUser)
+    return shell(`<div class="panel">Giriş yapmalısınız.</div>`);
 
-  const {data:favs}=await supabase
+  const { data:favs } = await supabase
     .from('favorites')
     .select('listing_id')
     .eq('user_id',currentUser.id);
 
-  const ids=(favs || []).map(x=>x.listing_id);
+  const ids = (favs || []).map(x => x.listing_id);
 
-  if (!ids.length) {
+  if (!ids.length)
     return shell(`
       <section>
         <h1>Favorilerim</h1>
-        <div class="empty">Henüz favori ilanınız yok.</div>
+        <div class="empty">Favori ilanınız yok.</div>
       </section>
     `);
-  }
 
-  const {data}=await supabase
+  const { data:listings } = await supabase
     .from('listings')
-    .select('*')
+    .select('*,listing_images(image_url,is_cover,sort_order)')
     .in('id',ids)
-    .eq('status','active');
-
-  const listings=await addFirstImages(data || []);
+    .eq('status','active')
+    .gt('expires_at',new Date().toISOString());
 
   return shell(`
     <section>
-      <div class="sectionHead">
-        <h1>Favorilerim</h1>
-        <span>${listings.length} ilan</span>
-      </div>
-
+      <h1>Favorilerim</h1>
       <div class="grid">
-        ${listings.map(card).join('')}
+        ${(listings || []).map(card).join('')}
       </div>
     </section>
   `);
 }
 
-/* =========================================================
-   MESAJLAR
-========================================================= */
+/* =========================
+   MESAJLAR + TELEFON
+========================= */
 
-async function messagesPage() {
-  if (!currentUser) {
-    location.hash='#/login';
-    return '';
-  }
-
-  const {data,error}=await supabase
-    .from('messages')
-    .select('*')
-    .or(`sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`)
-    .order('created_at',{ascending:false});
-
-  if (error) {
-    return shell(`<div class="empty">Mesajlar yüklenemedi.</div>`);
-  }
-
-  const groups=new Map();
-
-  for (const message of data || []) {
-    const other=
-      message.sender_id===currentUser.id
-        ? message.receiver_id
-        : message.sender_id;
-
-    const key=`${message.listing_id}:${other}`;
-
-    if (!groups.has(key)) {
-      groups.set(key,{...message,otherUserId:other});
-    }
-  }
-
-  const conversations=[];
-
-  for (const item of groups.values()) {
-    const {data:profile}=await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id',item.otherUserId)
-      .maybeSingle();
-
-    const {data:listing}=await supabase
-      .from('listings')
-      .select('title')
-      .eq('id',item.listing_id)
-      .maybeSingle();
-
-    conversations.push({
-      ...item,
-      name:profile?.full_name || 'PazarElden kullanıcısı',
-      title:listing?.title || 'İlan'
-    });
-  }
-
-  return shell(`
-    <section>
-      <h1>Mesajlarım</h1>
-
-      ${
-        conversations.length
-          ? conversations.map(x=>`
-              <a
-                class="panel"
-                style="display:block;margin:12px auto"
-                href="#/conversation/${x.listing_id}/${x.otherUserId}"
-              >
-                <b>${safe(x.name)}</b>
-                <p>${safe(x.title)}</p>
-                <p>${safe(x.content || '')}</p>
-                <small>${dateText(x.created_at)}</small>
-              </a>
-            `).join('')
-          : `<div class="empty">Henüz mesajınız yok.</div>`
-      }
-    </section>
-  `);
-}
-
-window.startConversation=(listingId,sellerId)=>{
-  if (!currentUser) {
-    location.hash='#/login';
-    return;
-  }
-
-  location.hash=`#/conversation/${listingId}/${sellerId}`;
+window.openConversation = (listingId,otherId) => {
+  location.hash =
+    `#/conversation/${listingId}/${otherId}`;
 };
 
-async function conversationPage(listingId,otherUserId) {
-  if (!currentUser) {
-    location.hash='#/login';
-    return '';
-  }
+async function conversationPage(listingId,otherId) {
+  if (!currentUser)
+    return shell(`<div class="panel">Giriş yapmalısınız.</div>`);
 
-  const {data:listing}=await supabase
-    .from('listings')
-    .select('title')
-    .eq('id',listingId)
-    .maybeSingle();
-
-  const {data:profile}=await supabase
+  const { data:other } = await supabase
     .from('profiles')
     .select('full_name')
-    .eq('id',otherUserId)
+    .eq('id',otherId)
     .maybeSingle();
 
-  const {data:messages}=await supabase
+  const { data:messages } = await supabase
     .from('messages')
     .select('*')
     .eq('listing_id',listingId)
     .or(
-      `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUser.id})`
+      `and(sender_id.eq.${currentUser.id},receiver_id.eq.${otherId}),and(sender_id.eq.${otherId},receiver_id.eq.${currentUser.id})`
     )
     .order('created_at',{ascending:true});
 
-  await supabase
-    .from('messages')
-    .update({is_read:true})
-    .eq('listing_id',listingId)
-    .eq('receiver_id',currentUser.id)
-    .eq('sender_id',otherUserId);
+  const { data:shared } = await supabase.rpc(
+    'get_shared_phone',
+    {
+      p_owner_id:otherId,
+      p_listing_id:listingId
+    }
+  );
+
+  const phone =
+    Array.isArray(shared) ? shared[0] : shared;
 
   return shell(`
     <section>
-      <div class="panel">
-        <h1>${safe(profile?.full_name || 'PazarElden kullanıcısı')}</h1>
-        <p><b>İlan:</b> ${safe(listing?.title || 'İlan')}</p>
+      <h1>${safe(other?.full_name || 'Mesajlaşma')}</h1>
 
-        <div style="display:flex;flex-direction:column;gap:10px;margin:20px 0">
-          ${
-            messages?.length
-              ? messages.map(m=>`
-                  <div style="
-                    max-width:80%;
-                    padding:10px;
-                    border-radius:10px;
-                    ${
-                      m.sender_id===currentUser.id
-                        ? 'margin-left:auto;background:#e7f7f7'
-                        : 'margin-right:auto;background:#f0f2f5'
-                    }
-                  ">
-                    ${safe(m.content || '')}
-                    <br>
-                    <small>${dateText(m.created_at)}</small>
-                  </div>
-                `).join('')
-              : `<div class="empty">Henüz mesaj yok.</div>`
-          }
+      ${(messages || []).map(m => `
+        <div class="panel">
+          <b>${m.sender_id === currentUser.id ? 'Siz' : safe(other?.full_name || 'Kullanıcı')}</b>
+          <p>${safe(m.content || '')}</p>
+          <small>${dateText(m.created_at)}</small>
         </div>
+      `).join('')}
 
-        <textarea id="messageText" placeholder="Mesajınızı yazın..."></textarea>
+      ${
+        phone?.phone
+          ? `
+            <div class="phoneCard">
+              <b>📞 Kullanıcı telefonunu sizinle paylaştı</b>
+              <p>${safe(phone.phone)}</p>
+              <small>
+                ${dateText(phone.expires_at)} tarihine kadar görüntülenebilir.
+              </small>
+            </div>
+          `
+          : ''
+      }
 
-        <button onclick="sendMessage('${listingId}','${otherUserId}')">
+      <div class="panel form">
+        <textarea
+          id="messageText"
+          placeholder="Mesajınızı yazın..."
+        ></textarea>
+
+        <button onclick="sendMessage('${listingId}','${otherId}')">
           Mesaj Gönder
+        </button>
+
+        <button onclick="sharePhone('${listingId}','${otherId}')">
+          📞 Telefonumu 24 Saat Paylaş
+        </button>
+
+        <button onclick="revokePhone('${listingId}','${otherId}')">
+          🔒 Telefon Paylaşımını Kapat
         </button>
 
         <p id="messageMsg"></p>
@@ -1696,13 +1607,13 @@ async function conversationPage(listingId,otherUserId) {
   `);
 }
 
-window.sendMessage=async(listingId,receiverId)=>{
-  const input=document.querySelector('#messageText');
-  const content=input?.value.trim();
+window.sendMessage = async (listingId,receiverId) => {
+  const content = $('#messageText')?.value.trim();
+  const msg = $('#messageMsg');
 
   if (!content) return;
 
-  const {error}=await supabase
+  const { error } = await supabase
     .from('messages')
     .insert({
       sender_id:currentUser.id,
@@ -1713,306 +1624,407 @@ window.sendMessage=async(listingId,receiverId)=>{
     });
 
   if (error) {
-    alert('Mesaj gönderilemedi: '+error.message);
+    msg.textContent = error.message;
     return;
   }
 
-  input.value='';
   await render();
 };
 
-/* =========================================================
-   YÖNETİCİ PANELİ
-========================================================= */
+window.sharePhone = async (listingId,viewerId) => {
+  if (!confirm(
+    'Telefon numaranız yalnızca bu kullanıcıya 24 saat süreyle gösterilecektir. Onaylıyor musunuz?'
+  )) return;
 
-async function adminPage() {
-  if (!currentUser || !isAdmin()) {
-    return shell(`
-      <section>
-        <div class="empty">
-          Bu sayfaya erişim yetkiniz yok.
-        </div>
-      </section>
-    `);
+  const { error } = await supabase.rpc(
+    'share_my_phone',
+    {
+      p_viewer_id:viewerId,
+      p_listing_id:listingId
+    }
+  );
+
+  if (error) alert(error.message);
+  else alert('Telefonunuz 24 saat süreyle paylaşıldı.');
+};
+
+window.revokePhone = async (listingId,viewerId) => {
+  const { error } = await supabase.rpc(
+    'revoke_my_phone_share',
+    {
+      p_viewer_id:viewerId,
+      p_listing_id:listingId
+    }
+  );
+
+  if (error) alert(error.message);
+  else alert('Telefon paylaşımı kapatıldı.');
+};
+
+/* =========================
+   MESAJ LİSTESİ
+========================= */
+
+async function messagesPage() {
+  if (!currentUser)
+    return shell(`<div class="panel">Giriş yapmalısınız.</div>`);
+
+  const { data:messages } = await supabase
+    .from('messages')
+    .select('*')
+    .or(
+      `sender_id.eq.${currentUser.id},receiver_id.eq.${currentUser.id}`
+    )
+    .order('created_at',{ascending:false});
+
+  const map = new Map();
+
+  for (const m of messages || []) {
+    const other =
+      m.sender_id === currentUser.id
+        ? m.receiver_id
+        : m.sender_id;
+
+    const key = `${m.listing_id}_${other}`;
+
+    if (!map.has(key))
+      map.set(key,{...m,other});
   }
 
-  const {count:userCount}=await supabase
-    .from('profiles')
-    .select('id',{count:'exact',head:true});
+  const rows = [];
 
-  const {count:activeCount}=await supabase
-    .from('listings')
-    .select('id',{count:'exact',head:true})
-    .eq('status','active');
+  for (const m of map.values()) {
+    const { data:p } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id',m.other)
+      .maybeSingle();
 
-  const {count:soldCount}=await supabase
-    .from('listings')
-    .select('id',{count:'exact',head:true})
-    .eq('status','sold');
-
-  const {count:inactiveCount}=await supabase
-    .from('listings')
-    .select('id',{count:'exact',head:true})
-    .eq('status','inactive');
-
-  const {data:listings}=await supabase
-    .from('listings')
-    .select('*')
-    .neq('status','deleted')
-    .order('created_at',{ascending:false})
-    .limit(100);
-
-  const {data:profiles}=await supabase
-    .from('profiles')
-    .select('id,full_name,is_admin')
-    .limit(100);
-
-  const profileMap={};
-
-  for (const p of profiles || []) {
-    profileMap[p.id]=p;
+    rows.push(`
+      <div class="panel">
+        <b>${safe(p?.full_name || 'PazarElden kullanıcısı')}</b>
+        <p>${safe(m.content || '')}</p>
+        <button onclick="openConversation('${m.listing_id}','${m.other}')">
+          Mesajları Aç
+        </button>
+      </div>
+    `);
   }
 
   return shell(`
     <section>
+      <h1>Mesajlarım</h1>
+      ${rows.join('') || `<div class="empty">Henüz mesajınız yok.</div>`}
+    </section>
+  `);
+}
 
-      <div class="adminTitle">
-        <h1>👑 PazarElden Yönetici Paneli</h1>
-        ${rankBadge(currentActiveListingCount,true)}
-      </div>
+/* =========================
+   ŞİKAYET
+========================= */
+
+window.reportListing = async (listingId,userId) => {
+  if (!currentUser) {
+    location.hash = '#/login';
+    return;
+  }
+
+  const reason = prompt(
+    'Şikâyet nedeninizi yazın:'
+  );
+
+  if (!reason) return;
+
+  const details = prompt(
+    'Varsa ayrıntı yazabilirsiniz:'
+  ) || '';
+
+  const { error } = await supabase
+    .from('reports')
+    .insert({
+      reporter_id:currentUser.id,
+      listing_id:listingId,
+      reported_user_id:userId,
+      reason,
+      details
+    });
+
+  if (error) alert(error.message);
+  else alert('Şikâyetiniz alındı.');
+};
+
+/* =========================
+   BİLDİRİMLER
+========================= */
+
+async function notificationsPage() {
+  if (!currentUser)
+    return shell(`<div class="panel">Giriş yapmalısınız.</div>`);
+
+  const { data:items } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id',currentUser.id)
+    .order('created_at',{ascending:false});
+
+  return shell(`
+    <section>
+      <h1>Bildirimler</h1>
+
+      ${
+        items?.length
+          ? items.map(n => `
+              <div class="panel">
+                <b>${safe(n.title)}</b>
+                <p>${safe(n.content || '')}</p>
+                <small>${dateText(n.created_at)}</small>
+              </div>
+            `).join('')
+          : `<div class="empty">Bildirim bulunmuyor.</div>`
+      }
+    </section>
+  `);
+}
+
+/* =========================
+   KURALLAR
+========================= */
+
+function rulesPage() {
+  return shell(`
+    <section class="panel">
+      <h1>PazarElden v1.0 Site ve İlan Kuralları</h1>
+
+      <ol class="rulesList">
+        <li>Yasa dışı, çalıntı, sahte veya satışı mevzuata aykırı ürünler yasaktır.</li>
+        <li>Ateşli silah, mühimmat, patlayıcı ve tehlikeli silah ilanları yasaktır.</li>
+        <li>Uyuşturucu, tütün, alkol ve yasaklı maddeler ilan edilemez.</li>
+        <li>Reçeteli ilaç ve satışı kısıtlanmış sağlık ürünleri ilan edilemez.</li>
+        <li>Pornografik, açık cinsel veya müstehcen içerik yasaktır.</li>
+        <li>Küfür, tehdit, taciz, nefret söylemi ve aşağılayıcı ifadeler yasaktır.</li>
+        <li>İlan bilgileri ve fotoğrafları gerçek ürünü doğru şekilde göstermelidir.</li>
+        <li>İlanlarda telefon, e-posta veya harici iletişim bilgisi yayınlanamaz.</li>
+        <li>TC kimlik, banka/kart bilgisi ve açık adres gibi hassas bilgiler yayınlanmamalıdır.</li>
+        <li>Spam ve görünürlüğü artırmak amacıyla tekrar ilan vermek yasaktır.</li>
+        <li>Yanıltıcı veya gerçeği yansıtmayan fiyat kullanılamaz.</li>
+        <li>Bir ilana en fazla 5 uygun fotoğraf yüklenebilir.</li>
+        <li>İlanlar yayınlanmadan önce moderasyon kontrolünden geçer.</li>
+        <li>Temel ilan bilgileri değiştirildiğinde ilan tekrar incelemeye alınabilir.</li>
+        <li>Kurallara aykırı reddedilen ilan ihlal olarak kaydedilebilir. Her 5 ihlalde 72 saat ilan verme kısıtlaması uygulanır.</li>
+        <li>Dolandırıcılık, sahte ödeme belgesi ve kimlik taklidi yasaktır.</li>
+        <li>Kullanıcılar birbirleriyle saygılı iletişim kurmalıdır.</li>
+        <li>PazarElden, kuralları ihlal eden ilanları kaldırabilir ve hesapları kısıtlayabilir.</li>
+      </ol>
+    </section>
+  `);
+}
+
+function termsPage() {
+  return shell(`
+    <section class="panel">
+      <h1>Kullanım Koşulları</h1>
 
       <p>
-        PazarElden yönetim ve kontrol merkezi.
+        PazarElden kullanıcıların ilan yayınlayabildiği bir ilan platformudur.
+        Kullanıcı yayınladığı ilan ve içeriklerin doğruluğundan sorumludur.
       </p>
 
-      <div class="adminStats">
+      <p>
+        Kurallara aykırı ilanlar reddedilebilir, kaldırılabilir veya hesap
+        geçici olarak kısıtlanabilir.
+      </p>
 
-        <div class="adminStat">
-          <span>Toplam Üye</span>
-          <strong>${userCount || 0}</strong>
-        </div>
-
-        <div class="adminStat">
-          <span>Aktif İlan</span>
-          <strong>${activeCount || 0}</strong>
-        </div>
-
-        <div class="adminStat">
-          <span>Satılan İlan</span>
-          <strong>${soldCount || 0}</strong>
-        </div>
-
-        <div class="adminStat">
-          <span>Yayından Kaldırılan</span>
-          <strong>${inactiveCount || 0}</strong>
-        </div>
-
-      </div>
-
-      <div class="panel" style="width:100%;max-width:none">
-        <h2>📋 İlan Yönetimi</h2>
-
-        ${
-          listings?.length
-            ? `
-              <table class="adminTable">
-                <thead>
-                  <tr>
-                    <th>İlan</th>
-                    <th>Satıcı</th>
-                    <th>Fiyat</th>
-                    <th>Durum</th>
-                    <th>İşlem</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  ${listings.map(x=>{
-                    const p=profileMap[x.user_id];
-
-                    return `
-                      <tr>
-                        <td>
-                          <a href="#/listing/${x.id}">
-                            ${safe(x.title)}
-                          </a>
-                        </td>
-
-                        <td>
-                          ${safe(p?.full_name || 'Kullanıcı')}
-                          ${p?.is_admin ? ' 👑' : ''}
-                        </td>
-
-                        <td>${money(x.price)}</td>
-
-                        <td>
-                          <span class="statusBadge">
-                            ${safe(x.status)}
-                          </span>
-                        </td>
-
-                        <td>
-                          <a href="#/edit/${x.id}">
-                            ✏️ Düzenle
-                          </a>
-                        </td>
-                      </tr>
-                    `;
-                  }).join('')}
-                </tbody>
-              </table>
-            `
-            : `<div class="empty">İlan bulunmuyor.</div>`
-        }
-      </div>
-
-      <div class="panel" style="width:100%;max-width:none;margin-top:20px">
-        <h2>👥 Üyeler</h2>
-
-        ${
-          profiles?.length
-            ? `
-              <table class="adminTable">
-                <thead>
-                  <tr>
-                    <th>Profil Adı</th>
-                    <th>Yetki</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  ${profiles.map(p=>`
-                    <tr>
-                      <td>
-                        ${safe(p.full_name || 'Profil adı belirlenmemiş')}
-                      </td>
-
-                      <td>
-                        ${
-                          p.is_admin
-                            ? '👑 Yönetici'
-                            : '👤 Üye'
-                        }
-                      </td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-            `
-            : `<div class="empty">Üye bulunmuyor.</div>`
-        }
-      </div>
-
+      <p>
+        Premium üyelik 99 TL karşılığında 30 günlük kullanım sağlar.
+        İlk sürümde otomatik yenileme ve otomatik kart çekimi yapılmaz.
+      </p>
     </section>
   `);
 }
 
-/* =========================================================
+function privacyPage() {
+  return shell(`
+    <section class="panel">
+      <h1>Gizlilik ve KVKK</h1>
+
+      <p>
+        Telefon numarası herkese açık profilde veya ilanlarda gösterilmez.
+      </p>
+
+      <p>
+        Kullanıcı telefonunu yalnız kendi açık işlemiyle belirli bir
+        kullanıcıya 24 saat süreyle paylaşabilir ve süre dolmadan paylaşımı
+        iptal edebilir.
+      </p>
+
+      <p>
+        Hesap, ilan, mesajlaşma ve güvenlik için gerekli veriler hizmetin
+        işletilmesi amacıyla işlenir.
+      </p>
+
+      <p>
+        Bu metin yayına alınmadan önce işletmenin gerçek unvanı, iletişim
+        bilgileri, veri sorumlusu bilgileri, saklama süreleri ve KVKK
+        kapsamındaki başvuru yöntemleri eklenmelidir.
+      </p>
+    </section>
+  `);
+}
+
+/* =========================
+   ARAMA
+========================= */
+
+async function searchPage() {
+  const p =
+    new URLSearchParams(
+      location.hash.split('?')[1] || ''
+    );
+
+  const q = p.get('q') || '';
+
+  const listings = await getActiveListings(q);
+
+  const premium = listings.filter(x => x.sellerPremium);
+  const normal = listings.filter(x => !x.sellerPremium);
+
+  return shell(`
+    <section>
+      <h1>Arama Sonuçları</h1>
+      <p>“${safe(q)}” için sonuçlar</p>
+
+      ${
+        premium.length
+          ? `
+            <div class="premiumBox">
+              <h2>💎 Premium Sonuçlar</h2>
+              <div class="grid">
+                ${premium.map(card).join('')}
+              </div>
+            </div>
+          `
+          : ''
+      }
+
+      <div class="grid">
+        ${
+          normal.length
+            ? normal.map(card).join('')
+            : premium.length
+              ? ''
+              : `<div class="empty">Sonuç bulunamadı.</div>`
+        }
+      </div>
+    </section>
+  `);
+}
+
+/* =========================
    ROUTER
-========================================================= */
+========================= */
 
 async function render() {
-  const app=document.querySelector('#app');
-
-  if (!app) return;
-
+  await expireOldListings();
   await loadSession();
 
-  const hash=location.hash || '#/';
-  const route=hash.replace(/^#/,'').split('?')[0];
+  const raw =
+    location.hash.replace('#','') || '/';
 
-  if (route==='/' || route==='') {
-    app.innerHTML=await home();
-    return;
-  }
+  const path = raw.split('?')[0];
 
-  if (route==='/login') {
-    app.innerHTML=auth('login');
-    return;
-  }
+  let html;
 
-  if (route==='/signup') {
-    app.innerHTML=auth('signup');
-    return;
-  }
+  try {
+    if (path === '/') {
+      html = await home();
 
-  if (route==='/ilan-ver' || route==='/new') {
-    app.innerHTML=newListingPage();
-    return;
-  }
+    } else if (path === '/login') {
+      html = currentUser
+        ? await profilePage()
+        : authPage('login');
 
-  if (route==='/profile') {
-    app.innerHTML=await profilePage();
-    return;
-  }
+    } else if (path === '/signup') {
+      html = currentUser
+        ? await profilePage()
+        : authPage('signup');
 
-  if (route==='/favorites') {
-    app.innerHTML=await favoritesPage();
-    return;
-  }
+    } else if (
+      path === '/ilan-ver' ||
+      path === '/new'
+    ) {
+      html = newListingPage();
 
-  if (route==='/messages') {
-    app.innerHTML=await messagesPage();
-    return;
-  }
+    } else if (path.startsWith('/listing/')) {
+      html = await listingPage(
+        path.split('/')[2]
+      );
 
-  if (route==='/search') {
-    app.innerHTML=await searchPage();
-    return;
-  }
+    } else if (path.startsWith('/seller/')) {
+      html = await sellerPage(
+        path.split('/')[2]
+      );
 
-  if (route==='/admin') {
-    app.innerHTML=await adminPage();
-    return;
-  }
+    } else if (path === '/profile') {
+      html = await profilePage();
 
-  if (route.startsWith('/edit/')) {
-    const id=route.replace('/edit/','');
-    app.innerHTML=await editListingPage(id);
-    return;
-  }
+    } else if (path === '/favorites') {
+      html = await favoritesPage();
 
-  if (route.startsWith('/category/')) {
-    const category=decodeURIComponent(
-      route.replace('/category/','')
-    );
+    } else if (path === '/messages') {
+      html = await messagesPage();
 
-    app.innerHTML=await categoryPage(category);
-    return;
-  }
+    } else if (path.startsWith('/conversation/')) {
+      const a = path.split('/');
+      html = await conversationPage(a[2],a[3]);
 
-  if (route.startsWith('/listing/')) {
-    const id=route.replace('/listing/','');
+    } else if (path === '/notifications') {
+      html = await notificationsPage();
 
-    app.innerHTML=await listingDetail(id);
-    return;
-  }
+    } else if (path === '/premium') {
+      html = premiumPage();
 
-  if (route.startsWith('/conversation/')) {
-    const parts=route
-      .replace('/conversation/','')
-      .split('/');
+    } else if (path === '/admin') {
+      html = await adminPage();
 
-    app.innerHTML=await conversationPage(
-      parts[0],
-      parts[1]
-    );
+    } else if (path === '/search') {
+      html = await searchPage();
 
-    return;
-  }
+    } else if (path === '/rules') {
+      html = rulesPage();
 
-  app.innerHTML=shell(`
-    <section>
-      <div class="empty">
-        Sayfa bulunamadı.
+    } else if (path === '/terms') {
+      html = termsPage();
+
+    } else if (path === '/privacy') {
+      html = privacyPage();
+
+    } else {
+      html = shell(`
+        <div class="panel">
+          <h1>Sayfa bulunamadı</h1>
+          <a href="#/">Ana sayfaya dön</a>
+        </div>
+      `);
+    }
+
+  } catch (err) {
+    console.error(err);
+
+    html = shell(`
+      <div class="panel">
+        <h1>Bir hata oluştu</h1>
+        <p>${safe(err?.message || 'Bilinmeyen hata')}</p>
+        <a href="#/">Ana sayfaya dön</a>
       </div>
-    </section>
-  `);
+    `);
+  }
+
+  $('#app').innerHTML = html;
 }
 
-/* =========================================================
-   BAŞLAT
-========================================================= */
+supabase.auth.onAuthStateChange(async (_event,session) => {
+  currentUser = session?.user || null;
+});
 
 window.addEventListener('hashchange',render);
 
