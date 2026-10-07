@@ -1976,3 +1976,7 @@ footer small {
 .newMemberNotice{display:flex;align-items:center;gap:12px;margin:18px 0;padding:14px 16px;background:#fff7f7;border:1px solid #fecaca;border-radius:14px;box-shadow:0 4px 14px rgba(220,38,38,.06)}
 .newMemberPulse{color:#dc2626;font-size:18px}.newMemberNotice div{display:flex;flex:1;flex-direction:column}.newMemberNotice strong{color:#991b1b}.newMemberNotice small{margin-top:2px;color:#64748b}.newMemberNotice a{color:#0b2b4f;font-size:12px;font-weight:800;text-decoration:none}
 @media(max-width:700px){.newMemberNotice{align-items:flex-start;flex-wrap:wrap}.newMemberNotice a{width:100%;padding-left:30px}}
+
+/* MEMBER REWARDS */
+.rewardPanel{margin:18px 0}.rewardTop{display:flex;align-items:center;justify-content:space-between;gap:16px}.rewardTop small{font-weight:800;color:#009ead;letter-spacing:1px}.rewardTop h3{margin:4px 0;color:#0b2b4f}.rewardTop>strong{font-size:24px;color:#d6a72c}.rewardStats{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}.rewardStats span{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;font-size:12px}.inviteBox{display:flex;gap:8px;margin:10px 0}.inviteBox input{flex:1;min-width:0}.inviteBox button{white-space:nowrap}.rewardPanel>small{color:#64748b}
+@media(max-width:650px){.inviteBox{flex-direction:column}.inviteBox button{width:100%}.rewardTop>strong{font-size:20px}}
