@@ -2260,6 +2260,13 @@ async function profilePage() {
     .order('created_at', { ascending: false });
 
   const p = currentProfile || {};
+  let reward = { points: 0, qualified_referrals: 0, shares_this_month: 0 };
+  const rewardResult = await safeTable('reward_points', () => supabase.rpc('my_reward_summary'));
+  if (rewardResult?.data?.[0]) reward = rewardResult.data[0];
+
+  const inviteCode = currentUser.id.slice(0, 8).toUpperCase();
+  const inviteLink = location.origin + location.pathname + '#/signup?ref=' + inviteCode;
+
   const joined = p.created_at
     ? new Date(p.created_at).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
     : '';
@@ -2299,6 +2306,12 @@ async function profilePage() {
       '<div class="panel publicAbout"><h3>Hakkımda</h3><p>' +
         safe(p.about_me || 'Henüz bir tanıtım yazısı eklenmemiş.') +
       '</p></div>' +
+      '<div class="panel rewardPanel"><div class="rewardTop"><div><small>🎁 ÖDÜL MERKEZİ</small><h3>PazarElden Puanım</h3></div><strong>' + Number(reward.points || 0) + ' P</strong></div>' +
+        '<div class="rewardStats"><span>🤝 <b>' + Number(reward.qualified_referrals || 0) + '</b> başarılı davet</span><span>📢 <b>' + Number(reward.shares_this_month || 0) + '/10</b> aylık paylaşım</span></div>' +
+        '<div class="inviteBox"><input id="inviteLink" readonly value="' + safe(inviteLink) + '"><button onclick="copyInviteLink()">Davet Linkini Kopyala</button></div>' +
+        '<small>50 P = 1 gün Premium • 100 P = 3 gün • 200 P = 7 gün. Davet puanı, yeni üyenin gerçek aktivitesi doğrulandıktan sonra verilir.</small>' +
+      '</div>' +
+
 
       '<div class="profileMenu">' +
         '<a href="#/profile">📋 İlanlarım</a>' +
@@ -2312,6 +2325,13 @@ async function profilePage() {
     '</section>'
   );
 }
+
+window.copyInviteLink = async () => {
+  const link = document.querySelector('#inviteLink')?.value;
+  if (!link) return;
+  try { await navigator.clipboard.writeText(link); alert('Davet linkiniz kopyalandı.'); }
+  catch { prompt('Davet linkinizi kopyalayın:', link); }
+};
 
 window.toggleProfileEditor = () => {
   const el = document.querySelector('#profileEditor');
