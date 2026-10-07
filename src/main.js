@@ -642,6 +642,16 @@ async function home() {
       `}
     </section>
 
+    <section class="homeCommunityHub">
+      <div class="sectionHead"><div><small class="sectionLabel">PAZARELDEN TOPLULUĞU</small><h2>Kazan, keşfet, güvenle kullan</h2></div></div>
+      <div class="communityCards">
+        <article class="communityCard"><span>🎁</span><h3>Puan & Davet Sistemi</h3><p>Davet bağlantını paylaş, topluluğa katkı sağla ve PazarElden puanlarını biriktir.</p><div class="miniSteps"><b>🤝 Başarılı davet +10 P</b><b>📢 Uygun paylaşım +1 P</b><b>⭐ Olumlu satış değerlendirmesi +5 P</b></div>
+        ${currentUser ? '<a href="#/profile">Puanlarımı Gör →</a>' : '<a href="#/signup">Devamı için ücretsiz üye ol →</a>'}</article>
+        <article class="communityCard"><span>🏆</span><h3>Kampanyalar & Hediyeler</h3><p>Ayın Üyesi, Premium gün hediyeleri ve dönemsel topluluk kampanyaları burada duyurulacak.</p>${currentUser ? '<a href="#/profile">Ödül Merkezine Git →</a>' : '<a href="#/signup">Kampanyalara katılmak için üye ol →</a>'}</article>
+        <article class="communityCard"><span>💡</span><h3>Bugünün PazarElden Tüyosu</h3><p>Net fotoğraf, açıklayıcı başlık ve gerçekçi fiyat ilanının daha güvenilir görünmesine yardımcı olur.</p>${currentUser ? '<a href="#/ilan-ver">İlan Vermeye Başla →</a>' : '<a href="#/signup">Daha fazla tüyo için üye ol →</a>'}</article>
+      </div>
+      <div class="comingSocial"><div><span>📸</span><div><small>SOSYAL MEDYA</small><strong>PazarElden Instagram</strong><p>Kampanyalar, yeni ilanlar, güvenli alışveriş tüyoları ve topluluk paylaşımları için hazırlanıyor.</p></div></div><b>Yakında</b></div>
+    </section>
     <section class="categorySection">
       <div class="sectionHead">
         <div><small class="sectionLabel">KEŞFET</small><h2>Kategoriler</h2></div>
