@@ -2236,6 +2236,13 @@ async function profilePage() {
     .order('created_at', { ascending: false });
 
   const p = currentProfile || {};
+  const mineRows = mine || [];
+  const activeMine = mineRows.filter(x => x.status === 'active').length;
+  const soldMine = mineRows.filter(x => x.status === 'sold').length;
+  const { count: favoriteCount } = await supabase.from('favorites').select('id',{count:'exact',head:true}).eq('user_id',currentUser.id);
+  const { data: reviewRows } = await supabase.from('seller_reviews').select('rating').eq('seller_id',currentUser.id);
+  const reviewCount = reviewRows?.length || 0;
+  const avgRating = reviewCount ? (reviewRows.reduce((a,r)=>a+Number(r.rating||0),0)/reviewCount).toFixed(1) : '—';
   let reward = { points: 0, qualified_referrals: 0, shares_this_month: 0 };
   const rewardResult = await safeTable('reward_points', () => supabase.rpc('my_reward_summary'));
   if (rewardResult?.data?.[0]) reward = rewardResult.data[0];
@@ -2282,9 +2289,19 @@ async function profilePage() {
         '<button onclick="savePublicProfile()">Değişiklikleri Kaydet</button>' +
       '</div>' +
 
-      '<div class="panel publicAbout"><h3>Hakkımda</h3><p>' +
-        safe(p.about_me || 'Henüz bir tanıtım yazısı eklenmemiş.') +
-      '</p></div>' +
+      '<div class="profileDashboardGrid">' +
+        '<div class="profileMainColumn">' +
+          '<div class="profileQuickStats">' +
+            '<div><b>' + mineRows.length + '</b><span>Toplam İlan</span></div>' +
+            '<div><b>' + activeMine + '</b><span>Aktif İlan</span></div>' +
+            '<div><b>' + soldMine + '</b><span>Satılan</span></div>' +
+            '<div><b>' + Number(favoriteCount || 0) + '</b><span>Favori</span></div>' +
+            '<div><b>⭐ ' + avgRating + '</b><span>' + reviewCount + ' Değerlendirme</span></div>' +
+          '</div>' +
+          '<div class="panel publicAbout compactAbout"><h3>Hakkımda</h3><p>' + safe(p.about_me || 'Henüz bir tanıtım yazısı eklenmemiş.') + '</p></div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="panel feedbackPanel"><div><small>💬 PAZARELDEN</small><h3>Görüş ve Öneriler</h3><p>Siteyi geliştirmemize yardımcı olacak görüş ve önerilerini bize ilet.</p></div><button onclick="sendSuggestion()">Görüş ve Öneri Gönder</button></div>' +
       '<div class="panel rewardPanel"><div class="rewardTop"><div><small>🎁 ÖDÜL MERKEZİ</small><h3>PazarElden Puanım</h3></div><strong>' + Number(reward.points || 0) + ' P</strong></div>' +
         '<div class="rewardStats"><span>🤝 <b>' + Number(reward.qualified_referrals || 0) + '</b> başarılı davet</span><span>📢 <b>' + Number(reward.shares_this_month || 0) + '/10</b> aylık paylaşım</span><span>👥 <b>' + Number(myVisits.member_visits || 0) + '</b> benzersiz üye ziyareti</span><span>👁️ <b>' + Number(myVisits.guest_visits || 0) + '</b> misafir ziyareti</span></div><div class="inviteCodeLine">Referans Kodum: <b>' + safe(inviteCode) + '</b></div>' +
         '<div class="inviteBox"><input id="inviteLink" readonly value="' + safe(inviteLink) + '"><button onclick="copyInviteLink()">Davet Linkini Kopyala</button></div>' +
@@ -2306,6 +2323,17 @@ async function profilePage() {
     '</section>'
   );
 }
+
+window.sendSuggestion = async () => {
+  if (!currentUser) return location.hash='#/login';
+  const title = prompt('Görüş veya önerinizin kısa başlığını yazın:');
+  if (!title?.trim()) return;
+  const description = prompt('Görüş veya önerinizi yazın:');
+  if (!description?.trim()) return;
+  const { error } = await supabase.from('user_suggestions').insert({user_id:currentUser.id,title:title.trim().slice(0,120),description:description.trim().slice(0,1500),status:'new'});
+  if (error) return alert('Gönderilemedi: '+error.message);
+  alert('Teşekkürler. Görüş ve öneriniz yönetime iletildi.');
+};
 
 window.redeemReward = async points => {
   const { error } = await supabase.rpc('redeem_reward', { p_points: points });
@@ -3291,6 +3319,18 @@ async function adminPage() {
     return shell('<div class="panel"><h1>Yetkisiz Alan</h1></div>');
   }
 
+  const countOf = async (table, apply) => {
+    let q = supabase.from(table).select('id',{count:'exact',head:true});
+    if (apply) q = apply(q);
+    const r = await q; return r.count || 0;
+  };
+  const [totalListings,activeListings,soldListings,totalOffers,totalMessages,openReports,premiumMembers,suggestionCount] = await Promise.all([
+    countOf('listings'), countOf('listings',q=>q.eq('status','active')), countOf('listings',q=>q.eq('status','sold')),
+    countOf('offers'), countOf('messages'), countOf('reports',q=>q.in('status',['open','pending'])),
+    countOf('profiles',q=>q.gt('premium_until',new Date().toISOString())), countOf('user_suggestions',q=>q.eq('status','new'))
+  ]);
+  const { data: adminSuggestions } = await supabase.from('user_suggestions').select('id,title,description,status,created_at,user_id').order('created_at',{ascending:false}).limit(20);
+
   const { data: users } = await supabase
     .from('profiles')
     .select('id, full_name, city, role, is_admin, is_moderator, premium_until, created_at')
@@ -3347,6 +3387,7 @@ async function adminPage() {
         <a href="#adminNewMembers">👥 Üyeler</a>
         <a href="#adminModeration">🛡️ Moderasyon</a>
         <a href="#adminListings">📦 İlan Yönetimi</a>
+        <a href="#adminFeedback">💬 Görüş & Öneriler</a>
         <a href="#adminRoles">🔐 Yetkilendirme</a>
       </div>
 
@@ -3355,6 +3396,14 @@ async function adminPage() {
         <div class="adminStat">🆕<b>${todayCount}</b><span>Bugün Katılan</span></div>
         <div class="adminStat">📅<b>${weekCount}</b><span>Son 7 Gün</span></div>
         <div class="adminStat">📢<b>${pending?.length || 0}</b><span>Bekleyen İlan</span></div>
+        <div class="adminStat">📦<b>${totalListings}</b><span>Toplam İlan</span></div>
+        <div class="adminStat">🟢<b>${activeListings}</b><span>Aktif İlan</span></div>
+        <div class="adminStat">✅<b>${soldListings}</b><span>Satılan</span></div>
+        <div class="adminStat">💎<b>${premiumMembers}</b><span>Premium Üye</span></div>
+        <div class="adminStat">🤝<b>${totalOffers}</b><span>Teklif</span></div>
+        <div class="adminStat">💬<b>${totalMessages}</b><span>Mesaj</span></div>
+        <div class="adminStat">🚩<b>${openReports}</b><span>Açık Rapor</span></div>
+        <div class="adminStat">💡<b>${suggestionCount}</b><span>Yeni Öneri</span></div>
       </div>
 
       <div class="sectionHead adminSectionHead" id="adminNewMembers">
@@ -3389,6 +3438,9 @@ async function adminPage() {
           '<div class="adminControlActions"><select id="role_' + u.id + '"><option value="member">Üye</option><option value="assistant_moderator">Yardımcı Moderatör</option><option value="moderator">Moderatör</option><option value="head_moderator">Baş Moderatör</option></select><button onclick="adminSetRole(\'' + u.id + '\')">Rolü Kaydet</button><button onclick="adminGivePoints(\'' + u.id + '\')">+ Puan Ekle</button></div>') + '</div>';
         }).join('') : '<div class="empty">Üye bulunmuyor.</div>'}
       </div>
+
+      <div class="sectionHead adminSectionHead" id="adminFeedback"><div><small class="sectionLabel">TOPLULUK</small><h2>Görüş ve Öneriler</h2></div></div>
+      <div class="panel adminFeedbackList">${(adminSuggestions||[]).length ? adminSuggestions.map(x=>'<div class="adminFeedbackRow"><div><b>'+safe(x.title)+'</b><p>'+safe(x.description)+'</p><small>'+safe(dateText(x.created_at))+'</small></div><span>'+safe(x.status||'new')+'</span></div>').join('') : '<div class="empty">Yeni görüş veya öneri yok.</div>'}</div>
 
       <div class="sectionHead adminSectionHead" id="adminModeration">
         <div><small class="sectionLabel">MODERASYON</small><h2>Bekleyen İlanlar</h2></div>
