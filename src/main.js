@@ -3259,6 +3259,15 @@ async function adminPage() {
   const todayCount = allUsers.filter(u => new Date(u.created_at).getTime() >= startToday.getTime()).length;
   const weekCount = allUsers.filter(u => new Date(u.created_at).getTime() >= now - 7*24*60*60*1000).length;
   const newUsers = allUsers.slice(0, 12);
+  const lastSeenMemberAt = localStorage.getItem('adminLastSeenMemberAt');
+  const unseenUsers = lastSeenMemberAt
+    ? allUsers.filter(u => new Date(u.created_at).getTime() > new Date(lastSeenMemberAt).getTime())
+    : [];
+  const newestMemberAt = allUsers[0]?.created_at || null;
+
+  setTimeout(() => {
+    if (newestMemberAt) localStorage.setItem('adminLastSeenMemberAt', newestMemberAt);
+  }, 0);
 
   return shell(`
     <section class="adminMembers">
@@ -3267,6 +3276,14 @@ async function adminPage() {
         <p>Üyeleri, yeni kayıtları ve moderasyon işlemlerini tek yerden takip edin.</p>
       </div>
 
+      ${unseenUsers.length ? `
+        <div class="newMemberNotice">
+          <span class="newMemberPulse">●</span>
+          <div><strong>${unseenUsers.length} yeni üye kaydı</strong><small>Son kontrolünüzden sonra PazarElden'e yeni üye katıldı.</small></div>
+          <a href="#adminNewMembers">Üyeleri Gör ↓</a>
+        </div>
+      ` : ''}
+
       <div class="adminGrid memberStats">
         <div class="adminStat">👥<b>${allUsers.length}</b><span>Toplam Üye</span></div>
         <div class="adminStat">🆕<b>${todayCount}</b><span>Bugün Katılan</span></div>
@@ -3274,7 +3291,7 @@ async function adminPage() {
         <div class="adminStat">📢<b>${pending?.length || 0}</b><span>Bekleyen İlan</span></div>
       </div>
 
-      <div class="sectionHead adminSectionHead">
+      <div class="sectionHead adminSectionHead" id="adminNewMembers">
         <div><small class="sectionLabel">ÜYE TAKİBİ</small><h2>Son Üyeler</h2></div>
       </div>
       <div class="panel memberTableWrap">
