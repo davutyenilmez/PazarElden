@@ -3328,6 +3328,7 @@ async function adminPage() {
         <a href="#adminNewMembers">👥 Üyeler</a>
         <a href="#adminModeration">🛡️ Moderasyon</a>
         <a href="#adminListings">📦 İlan Yönetimi</a>
+        <a href="#adminRoles">🔐 Yetkilendirme</a>
       </div>
 
             <div class="adminGrid memberStats">
@@ -3354,6 +3355,20 @@ async function adminPage() {
             '</a>';
           }).join('') : '<div class="empty">Henüz üye bulunmuyor.</div>'}
         </div>
+      </div>
+
+      <div class="sectionHead adminSectionHead" id="adminRoles">
+        <div><small class="sectionLabel">YETKİ & PUAN YÖNETİMİ</small><h2>Üye Yetkilendirme</h2></div>
+      </div>
+      <div class="panel adminControlList">
+        <p class="adminHint">Rol ve manuel puan işlemleri yalnızca ana yönetici tarafından yapılır ve yönetim kayıtlarına işlenir.</p>
+        ${allUsers.length ? allUsers.map(u => {
+          const ov = memberMap.get(u.id) || {};
+          const roleText = u.is_admin ? 'Ana Yönetici' : (u.role || 'member');
+          return '<div class="adminControlRow"><div><b>' + safe(u.full_name || 'PazarElden Üyesi') + '</b><small>' + safe(roleText) + ' • ' + Number(ov.reward_points || 0) + ' P • ' + Number(ov.member_visits || 0) + ' üye ziyareti</small></div>' +
+          (u.is_admin ? '<span class="adminLocked">👑 Ana Yönetici</span>' :
+          '<div class="adminControlActions"><select id="role_' + u.id + '"><option value="member">Üye</option><option value="assistant_moderator">Yardımcı Moderatör</option><option value="moderator">Moderatör</option><option value="head_moderator">Baş Moderatör</option></select><button onclick="adminSetRole(\'' + u.id + '\')">Rolü Kaydet</button><button onclick="adminGivePoints(\'' + u.id + '\')">+ Puan Ekle</button></div>') + '</div>';
+        }).join('') : '<div class="empty">Üye bulunmuyor.</div>'}
       </div>
 
       <div class="sectionHead adminSectionHead" id="adminModeration">
@@ -3387,6 +3402,28 @@ async function adminPage() {
   `);
 }
 
+
+window.adminGivePoints = async userId => {
+  const value = prompt('Eklenecek puanı yazın (1-1000):');
+  if (!value) return;
+  const points = Number(value);
+  const reason = prompt('Puan ekleme nedenini yazın:');
+  if (!reason?.trim()) return;
+  const { error } = await supabase.rpc('admin_grant_points',{p_user_id:userId,p_points:points,p_reason:reason.trim()});
+  if (error) { alert(error.message); return; }
+  alert('Puan güvenli şekilde eklendi ve yönetim kaydına işlendi.');
+  await render();
+};
+
+window.adminSetRole = async userId => {
+  const role = document.querySelector('#role_' + userId)?.value;
+  if (!role) return;
+  if (!confirm('Bu kullanıcının rolünü değiştirmek istiyor musunuz?')) return;
+  const { error } = await supabase.rpc('admin_set_member_role',{p_user_id:userId,p_role:role});
+  if (error) { alert(error.message); return; }
+  alert('Kullanıcı rolü güncellendi.');
+  await render();
+};
 
 window.approveListing =
   async id => {
