@@ -2261,8 +2261,10 @@ async function profilePage() {
   const rewardResult = await safeTable('reward_points', () => supabase.rpc('my_reward_summary'));
   if (rewardResult?.data?.[0]) reward = rewardResult.data[0];
 
-  const inviteCode = currentUser.id.slice(0, 8).toUpperCase();
+  const { data: inviteCodeData } = await supabase.rpc('ensure_my_referral_code');
+  const inviteCode = inviteCodeData || '';
   const inviteLink = location.origin + location.pathname + '#/signup?ref=' + inviteCode;
+  const { data: myVisitCount } = await supabase.rpc('my_profile_visit_count');
 
   const joined = p.created_at
     ? new Date(p.created_at).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
@@ -2304,7 +2306,7 @@ async function profilePage() {
         safe(p.about_me || 'Henüz bir tanıtım yazısı eklenmemiş.') +
       '</p></div>' +
       '<div class="panel rewardPanel"><div class="rewardTop"><div><small>🎁 ÖDÜL MERKEZİ</small><h3>PazarElden Puanım</h3></div><strong>' + Number(reward.points || 0) + ' P</strong></div>' +
-        '<div class="rewardStats"><span>🤝 <b>' + Number(reward.qualified_referrals || 0) + '</b> başarılı davet</span><span>📢 <b>' + Number(reward.shares_this_month || 0) + '/10</b> aylık paylaşım</span></div>' +
+        '<div class="rewardStats"><span>🤝 <b>' + Number(reward.qualified_referrals || 0) + '</b> başarılı davet</span><span>📢 <b>' + Number(reward.shares_this_month || 0) + '/10</b> aylık paylaşım</span><span>👁️ <b>' + Number(myVisitCount || 0) + '</b> benzersiz profil ziyareti</span></div><div class="inviteCodeLine">Referans Kodum: <b>' + safe(inviteCode) + '</b></div>' +
         '<div class="inviteBox"><input id="inviteLink" readonly value="' + safe(inviteLink) + '"><button onclick="copyInviteLink()">Davet Linkini Kopyala</button></div>' +
         '<div class="rewardButtons"><button onclick="redeemReward(50)">50 P → 1 Gün Premium</button><button onclick="redeemReward(100)">100 P → 3 Gün</button><button onclick="redeemReward(200)">200 P → 7 Gün</button></div>' +
         '<small>Davet puanı, davet edilen üye ilk ilanını oluşturduğunda otomatik verilir.</small>' +
@@ -2374,6 +2376,15 @@ async function sellerPage(id) {
 
   if (!seller) return shell('<div class="panel">Satıcı bulunamadı.</div>');
 
+  let visitorKey = localStorage.getItem('peVisitorKey');
+  if (!visitorKey) {
+    visitorKey = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random()) + '-' + navigator.userAgent;
+    localStorage.setItem('peVisitorKey', visitorKey);
+  }
+  let publicVisitCount = null;
+  const visitResult = await supabase.rpc('register_profile_visit', { p_profile_id: id, p_visitor_key: visitorKey });
+  if (!visitResult.error) publicVisitCount = visitResult.data;
+
   const { data: listings } = await supabase
     .from('listings')
     .select('*, listing_images(image_url)')
@@ -2405,6 +2416,7 @@ async function sellerPage(id) {
       '</div>' +
       '<div class="panel publicAbout"><h3>Hakkında</h3><p>' +
         safe(seller.about_me || 'Bu üye henüz kendini tanıtan bir açıklama eklememiş.') +
+      '</p>' + (publicVisitCount !== null ? '<small>👁️ ' + Number(publicVisitCount) + ' benzersiz profil ziyareti</small>' : '') +
       '</p></div>' +
       '<div class="profileSectionTitle"><h2>Aktif İlanları</h2><span>' + (listings?.length || 0) + '</span></div>' +
       '<div class="grid">' + (listings?.length ? listings.map(card).join('') : '<div class="empty">Aktif ilan bulunmuyor.</div>') + '</div>' +
@@ -3291,6 +3303,9 @@ async function adminPage() {
     .select('*')
     .eq('status', 'pending')
     .order('created_at', { ascending: false });
+
+  const { data: memberOverview } = await supabase.rpc('admin_member_overview');
+  const memberMap = new Map((memberOverview || []).map(x => [x.user_id, x]));
 
   const { data: allListings } = await supabase
     .from('listings')
