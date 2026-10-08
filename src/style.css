@@ -2119,3 +2119,32 @@ header>nav .cta{padding:10px 14px}
 .memberProfile .memberMorePanel{z-index:30;min-width:180px;max-width:min(240px,calc(100vw - 36px))}
 .memberProfile .memberMorePanel button{display:block;width:100%;text-align:left}
 .memberProfile .memberTrustSummary{position:relative;z-index:1}
+
+/* Header navigation: independent clickable tabs and right-aligned post CTA */
+@media(min-width:761px){
+  header{display:flex;align-items:center;gap:clamp(12px,1.4vw,24px);padding-left:clamp(14px,2vw,32px);padding-right:clamp(14px,2vw,32px)}
+  header .brand{flex:0 0 auto}
+  header .topsearch{flex:1 1 260px;min-width:145px;max-width:430px}
+  header>nav.peDesktopNav{margin-left:auto;display:flex;align-items:center;gap:clamp(7px,.8vw,14px);min-width:0;flex:0 0 auto}
+  header>nav.peDesktopNav>.peNavPrimary,header>nav.peDesktopNav>.peHeaderDropdown>summary{min-height:43px;padding:10px 11px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;white-space:nowrap}
+  header>nav.peDesktopNav>.peHeaderDropdown{flex:0 0 auto}
+  header>nav.peDesktopNav>.peHeaderDropdown>summary{border:1px solid transparent}
+  header>nav.peDesktopNav>.peAccountDropdown>summary{border-color:#e2eaf1}
+  header>nav.peDesktopNav>.peHeaderPost{order:20;flex:0 0 auto;min-height:44px;margin-left:8px;padding:10px 17px;white-space:nowrap}
+  header>nav.peDesktopNav .peDropdownPanel{top:calc(100% + 7px)}
+}
+@media(min-width:761px) and (max-width:1350px){
+  header{flex-wrap:wrap;row-gap:9px}
+  header .brand{order:0}
+  header>nav.peDesktopNav{order:1;flex:1 1 auto;justify-content:flex-end;gap:7px}
+  header .topsearch{order:2;flex:1 1 100%;max-width:none;min-width:0}
+  header>nav.peDesktopNav>.peNavPrimary,header>nav.peDesktopNav>.peHeaderDropdown>summary{padding:9px 10px}
+  header>nav.peDesktopNav .peAccountName{max-width:125px}
+}
+@media(min-width:761px) and (max-width:1000px){
+  header>nav.peDesktopNav{flex-wrap:wrap;justify-content:flex-end}
+  header>nav.peDesktopNav>.peNavPrimary span:not(.peUnreadBadge),header>nav.peDesktopNav>.peListsDropdown>summary span:not(.peChevron){display:inline}
+}
+@media(max-width:760px){
+  header>nav.peDesktopNav>.peHeaderPost{margin-left:4px}
+}
