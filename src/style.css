@@ -2120,125 +2120,74 @@ header>nav .cta{padding:10px 14px}
 .memberProfile .memberMorePanel button{display:block;width:100%;text-align:left}
 .memberProfile .memberTrustSummary{position:relative;z-index:1}
 
-/* Header navigation: independent clickable tabs and right-aligned post CTA */
-@media(min-width:761px){
-  header{display:flex;align-items:center;gap:clamp(12px,1.4vw,24px);padding-left:clamp(14px,2vw,32px);padding-right:clamp(14px,2vw,32px)}
-  header .brand{flex:0 0 auto}
-  header .topsearch{flex:1 1 260px;min-width:145px;max-width:430px}
-  header>nav.peDesktopNav{margin-left:auto;display:flex;align-items:center;gap:clamp(7px,.8vw,14px);min-width:0;flex:0 0 auto}
-  header>nav.peDesktopNav>.peNavPrimary,header>nav.peDesktopNav>.peHeaderDropdown>summary{min-height:43px;padding:10px 11px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:10px;white-space:nowrap}
-  header>nav.peDesktopNav>.peHeaderDropdown{flex:0 0 auto}
-  header>nav.peDesktopNav>.peHeaderDropdown>summary{border:1px solid transparent}
-  header>nav.peDesktopNav>.peAccountDropdown>summary{border-color:#e2eaf1}
-  header>nav.peDesktopNav>.peHeaderPost{order:20;flex:0 0 auto;min-height:44px;margin-left:8px;padding:10px 17px;white-space:nowrap}
-  header>nav.peDesktopNav .peDropdownPanel{top:calc(100% + 7px)}
-}
-@media(min-width:761px) and (max-width:1350px){
-  header{flex-wrap:wrap;row-gap:9px}
-  header .brand{order:0}
-  header>nav.peDesktopNav{order:1;flex:1 1 auto;justify-content:flex-end;gap:7px}
-  header .topsearch{order:2;flex:1 1 100%;max-width:none;min-width:0}
-  header>nav.peDesktopNav>.peNavPrimary,header>nav.peDesktopNav>.peHeaderDropdown>summary{padding:9px 10px}
-  header>nav.peDesktopNav .peAccountName{max-width:125px}
-}
-@media(min-width:761px) and (max-width:1000px){
-  header>nav.peDesktopNav{flex-wrap:wrap;justify-content:flex-end}
-  header>nav.peDesktopNav>.peNavPrimary span:not(.peUnreadBadge),header>nav.peDesktopNav>.peListsDropdown>summary span:not(.peChevron){display:inline}
-}
-@media(max-width:760px){
-  header>nav.peDesktopNav>.peHeaderPost{margin-left:4px}
-}
 
-/* Primary CTA beside search instead of the far-right account menu */
+/* 2026 compact header redesign — replaces previous header experiments */
 @media(min-width:761px){
-  header>.peSearchPost{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:44px;padding:10px 16px;white-space:nowrap;margin-right:4px}
-  header>nav{margin-left:auto}
+ header{
+  display:flex!important;flex-wrap:nowrap!important;align-items:center;
+  gap:14px;padding:12px clamp(18px,2.3vw,38px);
+  min-height:78px;overflow:visible;
+ }
+ header>.brand{order:0;flex:0 0 auto}
+ header>.topsearch{
+  order:1;flex:0 1 340px!important;
+  width:clamp(210px,23vw,340px)!important;
+  max-width:340px!important;min-width:180px!important;
+  margin:0!important;
+ }
+ header>.topsearch input{min-width:0}
+ header>.peSearchPost{
+  order:2;display:inline-flex;align-items:center;justify-content:center;
+  flex:0 0 auto!important;min-height:49px;min-width:142px;
+  padding:12px 23px!important;margin:0!important;
+  font-size:15px!important;font-weight:800;border-radius:11px;
+  box-shadow:0 5px 14px rgba(0,158,173,.16);white-space:nowrap;
+ }
+ header>nav{
+  order:3;display:flex!important;flex:1 1 auto!important;
+  width:auto!important;min-width:0!important;
+  margin:0 0 0 auto!important;padding:0!important;
+  align-items:center;justify-content:flex-end!important;
+  gap:8px!important;flex-wrap:nowrap!important;overflow:visible;
+ }
+ header>nav>.peNavPrimary,header>nav>.peHeaderDropdown>summary{
+  display:inline-flex!important;align-items:center;justify-content:center;
+  min-height:43px;padding:10px 12px!important;margin:0!important;
+  border-radius:10px;white-space:nowrap;line-height:1.2;
+  position:relative;
+ }
+ header>nav>.peHeaderDropdown{position:relative;flex:0 0 auto}
+ header>nav>.peHeaderDropdown>.peDropdownPanel{
+  position:absolute;top:calc(100% + 9px);right:0;z-index:2000;
+ }
+ header>nav .peAccountName{max-width:100px}
 }
-@media(min-width:761px) and (max-width:1350px){
-  header .brand{order:0}
-  header .topsearch{order:1;flex:1 1 200px;min-width:160px;max-width:440px}
-  header>.peSearchPost{order:2}
-  header>nav{order:3;flex:1 1 100%;justify-content:flex-end}
+@media(min-width:761px) and (max-width:1450px){
+ header{flex-wrap:wrap!important;row-gap:10px}
+ header>.brand{order:0}
+ header>.topsearch{order:1;flex:0 1 340px!important;width:clamp(210px,30vw,340px)!important}
+ header>.peSearchPost{order:2}
+ header>nav{
+  order:3;flex:1 1 100%!important;
+  justify-content:flex-start!important;
+  padding:8px 0 0!important;
+  border-top:1px solid #edf1f5;
+  gap:12px!important;
+ }
+}
+@media(min-width:761px) and (max-width:950px){
+ header>nav{flex-wrap:wrap!important;gap:7px!important}
+ header>nav>.peNavPrimary span:not(.peUnreadBadge),
+ header>nav>.peListsDropdown>summary span:not(.peChevron){display:inline!important}
 }
 @media(max-width:760px){
-  header>.peSearchPost{order:2;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 12px;margin-left:auto;white-space:nowrap}
-  header>nav{order:2;margin-left:0}
-  header .topsearch{order:3;flex-basis:100%}
-}
-
-/* Definitive navigation fix: separate menu from search and post button.
-   Prevent overlapping hit targets on desktop and tablet. */
-@media(min-width:761px){
-  header{
-    display:grid!important;
-    grid-template-columns:max-content minmax(180px,1fr) max-content;
-    grid-template-rows:auto auto;
-    align-items:center;
-    column-gap:18px;
-    row-gap:8px;
-    padding-top:10px;
-    padding-bottom:10px;
-    overflow:visible;
-  }
-  header>.brand{grid-column:1;grid-row:1;order:unset}
-  header>.topsearch{
-    grid-column:2;grid-row:1;order:unset;
-    width:100%;max-width:none;min-width:0;
-    flex:none;
-  }
-  header>.peSearchPost{
-    grid-column:3;grid-row:1;order:unset;
-    margin:0!important;
-    min-height:44px;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-  }
-  header>nav,header>nav.peDesktopNav{
-    grid-column:1/-1;grid-row:2;order:unset;
-    width:100%;min-width:0;
-    margin:0!important;
-    display:flex!important;
-    flex:unset!important;
-    flex-wrap:wrap;
-    justify-content:flex-end!important;
-    align-items:center;
-    column-gap:12px!important;
-    row-gap:8px;
-    padding:4px 0 0;
-    position:relative;
-    overflow:visible;
-  }
-  header>nav>.peNavPrimary,
-  header>nav>.peHeaderDropdown>summary,
-  header>nav.peDesktopNav>.peNavPrimary,
-  header>nav.peDesktopNav>.peHeaderDropdown>summary{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    box-sizing:border-box;
-    position:relative;
-    min-height:42px;
-    padding:10px 13px!important;
-    margin:0!important;
-    line-height:1.2;
-    white-space:nowrap;
-    border-radius:9px;
-  }
-  header>nav>.peHeaderDropdown{position:relative;flex:0 0 auto}
-  header>nav>.peHeaderDropdown>.peDropdownPanel{
-    position:absolute;
-    top:calc(100% + 8px);
-    right:0;
-    z-index:2000;
-  }
-  header>nav>.peNavPrimary span:not(.peUnreadBadge),
-  header>nav>.peListsDropdown>summary span:not(.peChevron){
-    display:inline!important;
-  }
-}
-@media(max-width:760px){
-  header{overflow:visible}
-  header>nav{position:relative;overflow:visible}
-  header>nav .peHeaderDropdown>.peDropdownPanel{z-index:2000}
+ header{overflow:visible;gap:8px}
+ header>.peSearchPost{
+  display:inline-flex;order:2;min-height:42px;
+  padding:9px 14px!important;margin-left:auto;
+  font-size:13px;font-weight:800;white-space:nowrap;
+ }
+ header>nav{order:2;margin-left:0;overflow:visible}
+ header>.topsearch{order:3;flex-basis:100%;width:100%;max-width:none}
+ header>nav .peHeaderDropdown>.peDropdownPanel{z-index:2000}
 }
