@@ -2054,3 +2054,25 @@ footer small {
 .memberChat textarea{width:100%;padding:12px;border:1px solid #cbd8e1;border-radius:10px;box-sizing:border-box}
 .memberChat form button{align-self:flex-end;background:#0797a9;color:white;border:0;border-radius:10px;padding:12px 18px;cursor:pointer}
 @media(max-width:700px){.adminProfileHero{flex-wrap:wrap}.memberMessageCta{width:100%}.memberChat{padding:15px}}
+
+/* Compact professional desktop header */
+header{gap:clamp(12px,1.5vw,24px);padding-left:clamp(18px,3vw,52px);padding-right:clamp(18px,3vw,52px)}
+header .topsearch{max-width:480px;min-width:170px}
+header>nav{display:flex;align-items:center;gap:clamp(6px,.8vw,14px);flex-shrink:0;font-size:13px}
+header>nav .peNavPrimary,header>nav .peHeaderDropdown>summary{display:inline-flex;align-items:center;gap:5px;padding:9px 10px;border-radius:9px;font-weight:650;white-space:nowrap;cursor:pointer;color:#30465e}
+header>nav .peNavPrimary:hover,header>nav .peHeaderDropdown>summary:hover,header>nav .peHeaderDropdown[open]>summary{background:#eef9fa;color:#008c9b}
+header>nav .peHeaderDropdown{position:relative}
+header>nav .peHeaderDropdown>summary{list-style:none}
+header>nav .peHeaderDropdown>summary::-webkit-details-marker{display:none}
+header>nav .peChevron{color:#8295a9;font-size:15px}
+header>nav .peDropdownPanel{position:absolute;right:0;top:calc(100% + 9px);z-index:1200;min-width:190px;background:white;border:1px solid #e2e8f0;box-shadow:0 15px 40px #102f4b24;border-radius:13px;padding:8px;display:flex;flex-direction:column;gap:3px}
+header>nav .peDropdownPanel a{display:block;padding:10px 12px;border-radius:8px;color:#263c56}
+header>nav .peDropdownPanel a:hover{background:#eaf8fa;color:#007f8d}
+header>nav .peAccountDropdown>summary{background:#f2f6fa;border:1px solid #e2eaf1}
+header>nav .peAccountName{max-width:110px;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle}
+header>nav .peDropdownHeading{padding:9px 12px 3px;font-weight:800;color:#0b2b4f}
+header>nav .peAccountRank{padding:4px 10px 10px;border-bottom:1px solid #e2e8f0;display:flex;gap:5px;flex-wrap:wrap}
+header>nav .cta{padding:10px 14px}
+@media(max-width:1250px){header{gap:10px}header .topsearch{max-width:300px}header>nav{gap:3px}header>nav .peNavPrimary,header>nav .peHeaderDropdown>summary{padding:8px 6px}header>nav .peAccountName{max-width:75px}}
+@media(max-width:1050px){header .topsearch{max-width:230px}header>nav .peNavPrimary span:not(#messageBadge){display:none}header>nav .peListsDropdown>summary span:not(.peChevron){display:none}}
+@media(max-width:700px){header>nav .peListsDropdown,header>nav .peNavPrimary{display:none}header>nav .peAccountName{display:none}header>nav .peHeaderDropdown>summary{padding:7px}header .topsearch{min-width:0}}
