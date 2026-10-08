@@ -2256,7 +2256,7 @@ async function profilePage() {
         <a href="#/messages">💬 <span>Mesajlarım</span></a>
         <a href="#/favorites">♡ <span>Favorilerim</span></a>
         <a href="#/following">♧ <span>Takiplerim</span></a>
-        <a href="#rewardCenter">🎁 <span>Ödül Merkezi</span></a>
+        <a href="#/profile" onclick="window.openProfileSection(event, 'rewardCenter')">🎁 <span>Ödül Merkezi</span></a>
         <a href="#/premium">💎 <span>Premium Üyelik</span></a>
         <button onclick="toggleProfileEditor()">⚙ <span>Hesap Ayarları</span></button>
         ${p.is_admin?'<a class="adminSideLink" href="#/admin">👑 <span>Yönetim Merkezi</span></a>':''}
@@ -2299,6 +2299,26 @@ async function profilePage() {
       </div>
     </section>`);
 }
+
+window.openProfileSection = (event, sectionId) => {
+  event.preventDefault();
+  const section = document.getElementById(sectionId);
+  if (section) {
+    section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const details = section.querySelector('details');
+    if (details) details.open = true;
+    return;
+  }
+  location.hash = '#/profile';
+  setTimeout(() => {
+    const target = document.getElementById(sectionId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const details = target.querySelector('details');
+      if (details) details.open = true;
+    }
+  }, 200);
+};
 
 window.sendSuggestion = async () => {
   if (!currentUser) return location.hash='#/login';
