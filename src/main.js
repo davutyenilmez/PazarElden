@@ -2057,6 +2057,7 @@ window.peHideConversation = async otherId => {
  if(!currentUser || !confirm('Sohbet kendi listenizden kaldırılsın mı? Karşı taraftaki mesajlar silinmez.'))return;
  const {error}=await supabase.from('hidden_conversations').upsert({user_id:currentUser.id,other_id:otherId,hidden_before:new Date().toISOString()},{onConflict:'user_id,other_id'});
  if(error)return alert('İşlem başarısız: '+error.message);
+ await supabase.from('messages').update({is_read:true}).eq('receiver_id',currentUser.id).eq('sender_id',otherId).eq('is_read',false);
  location.hash='#/messages';
  await render();
 };
@@ -3036,92 +3037,21 @@ async function searchPage() {
    ========================================================= */
 
 async function followingPage() {
-
-  if (!currentUser) {
-
-    location.hash =
-      '#/login';
-
-    return shell(`
-      <div class="panel">
-        Giriş yapmanız gerekiyor.
-      </div>
-    `);
-
-  }
-
-
-  const result =
-    await safeTable(
-      'listing_follows',
-      () =>
-        supabase
-          .from('listing_follows')
-          .select('listing_id')
-          .eq(
-            'user_id',
-            currentUser.id
-          )
-    );
-
-
-  const ids =
-    (result?.data || [])
-      .map(x => x.listing_id);
-
-
-  let listings = [];
-
-
-  if (ids.length) {
-
-    const r =
-      await supabase
-        .from('listings')
-        .select(`
-          *,
-          listing_images(image_url)
-        `)
-        .in('id', ids)
-        .eq(
-          'status',
-          'active'
-        );
-
-    listings =
-      r.data || [];
-
-  }
-
-
-  return shell(`
-
-    <section>
-
-      <h1>
-        🔔 Takip Ettiklerim
-      </h1>
-
-      <div class="grid">
-
-        ${
-          listings.length
-            ? listings.map(card).join('')
-            : `
-              <div class="empty">
-                Henüz takip ettiğiniz ilan yok.
-              </div>
-            `
-        }
-
-      </div>
-
-    </section>
-
-  `);
-
+ if(!currentUser) return shell('<div class="panel">Giriş yapmanız gerekiyor.</div>');
+ const [memberResult,listingResult]=await Promise.all([
+  supabase.from('member_follows').select('followed_id').eq('follower_id',currentUser.id),
+  supabase.from('listing_follows').select('listing_id').eq('user_id',currentUser.id)
+ ]);
+ const memberIds=(memberResult.data||[]).map(x=>x.followed_id);
+ const listingIds=(listingResult.data||[]).map(x=>x.listing_id);
+ const [members,listings]=await Promise.all([
+  memberIds.length?supabase.from('profiles').select('id,full_name,city').in('id',memberIds):Promise.resolve({data:[]}),
+  listingIds.length?supabase.from('listings').select('*,listing_images(image_url)').in('id',listingIds).eq('status','active'):Promise.resolve({data:[]})
+ ]);
+ return shell('<section class="memberFollowing"><h1>🔔 Takip Ettiklerim</h1><h2>👥 Takip Ettiğim Üyeler</h2>'+
+  ((members.data||[]).length?(members.data||[]).map(p=>'<a class="panel memberFollowLink" href="#/seller/'+encodeURIComponent(p.id)+'">👤 '+safe(p.full_name||'PazarElden Üyesi')+' · '+safe(p.city||'Konum belirtilmemiş')+' →</a>').join(''):'<p>Henüz takip ettiğiniz üye yok.</p>')+
+  '<h2>📦 Takip Ettiğim İlanlar</h2><div class="grid">'+((listings.data||[]).length?(listings.data||[]).map(card).join(''):'<div class="empty">Henüz takip ettiğiniz ilan yok.</div>')+'</div></section>');
 }
-
 
 /* =========================================================
    ÇIKIŞ
