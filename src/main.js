@@ -333,11 +333,12 @@ function shell(content) {
 
     </header>
 
+    ${(location.hash.replace(/^#/, '').split('?')[0] || '/') === '/' ? '' : `
     <div class="peNavigationBar" aria-label="Sayfa gezinme">
       <button type="button" onclick="peGoBack()" aria-label="Önceki sayfaya dön">← Geri</button>
       <a href="#/">⌂ Ana Sayfa</a>
-      <a href="#/profile">👤 Profilim</a>
-    </div>
+      ${currentUser ? '<a href="#/profile">👤 Profilim</a>' : ''}
+    </div>`}
     <main>
       ${content}
     </main>
