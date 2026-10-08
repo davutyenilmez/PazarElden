@@ -2027,17 +2027,29 @@ window.peReportMember = async id => {
  alert(error?'Gönderilemedi: '+error.message:'Şikâyetiniz yönetime iletildi.');
 };
 
+let lastMemberMessageAt = 0;
 window.sendMemberMessage = async (event, receiverId, listingId) => {
   event.preventDefault();
   if (!currentUser || currentUser.id === receiverId) return;
   const input = document.getElementById('memberMessageText');
   const message = (input?.value || '').trim();
   if (!message || message.length > 2000) return;
+  // Kullanıcı deneyimi için istemci tarafında kısa bekleme: sunucu hız sınırının yerini tutmaz.
+  const now = Date.now();
+  if (now - lastMemberMessageAt < 3000) {
+    alert('Lütfen yeni mesaj göndermeden önce birkaç saniye bekleyin.');
+    return;
+  }
   const button = event.target.querySelector('button');
   if (button) button.disabled = true;
-  const { error } = await supabase.from('messages').insert({sender_id:currentUser.id,receiver_id:receiverId,listing_id:listingId||null,message,content:message});
-  if (error) { alert('Mesaj gönderilemedi: '+error.message); if(button) button.disabled=false; return; }
-  await render();
+  try {
+    const { error } = await supabase.from('messages').insert({sender_id:currentUser.id,receiver_id:receiverId,listing_id:listingId||null,message,content:message});
+    if (error) { alert('Mesaj gönderilemedi: '+error.message); return; }
+    lastMemberMessageAt = Date.now();
+    await render();
+  } finally {
+    if (button && button.isConnected) button.disabled = false;
+  }
 };
 
 let peUnreadRequestPending = false;
