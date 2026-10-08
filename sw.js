@@ -1,4 +1,4 @@
-const CACHE='pazarelden-v3';
+const CACHE='pazarelden-v4';
 const CORE=['./','./index.html','./src/style.css','./src/main.js','./manifest.webmanifest','./icon.svg'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));

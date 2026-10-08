@@ -586,7 +586,7 @@ async function home() {
   }
 
   const premiumListings = listings.filter(x => x.is_premium === true).slice(0, 5);
-  const normalListings = listings.filter(x => x.is_premium !== true).slice(0, 10);
+  const normalListings = listings.slice(0, 12);
 
   return shell(`
     <section class="hero professionalHero">
@@ -615,24 +615,41 @@ async function home() {
       </div>
     </section>
 
+    <section class="marketSection">
+      <div class="sectionHead">
+        <div><small class="sectionLabel">YENİ İLANLAR</small><h2>Son Eklenen İlanlar</h2></div>
+        <a href="#/search?q=">Tümünü Gör →</a>
+      </div>
+      <div class="grid">
+        ${normalListings.length ? normalListings.map(card).join('') :
+          '<div class="empty"><div class="emptyIcon">📦</div><b>Henüz aktif ilan bulunmuyor</b><p>Yeni ilanlar yayınlandığında burada görüntülenecek.</p></div>'}
+      </div>
+    </section>
+    <section class="categorySection">
+      <div class="sectionHead">
+        <div><small class="sectionLabel">KEŞFET</small><h2>Kategoriler</h2></div>
+        <a href="#/categories">Tümünü Gör →</a>
+      </div>
+      <div class="cats professionalCats">
+        ${cats.map((c,i)=>`<a href="#/search?q=${encodeURIComponent(c)}"><i>${icons[i]}</i><b>${safe(c)}</b></a>`).join('')}
+      </div>
+    </section>
     <section class="premiumTopShowcase">
       <div class="premiumTopHead">
-        <div><small>💎 PAZARELDEN PREMIUM</small><h2>Öne Çıkan İlanlar</h2><p>Premium üyelerin öne çıkan ilanlarını hemen keşfet.</p></div>
-        <a href="#/search?q=">Tüm Premium İlanları Gör →</a>
+        <div><small>💎 PAZARELDEN PREMIUM</small><h2>Premium İlanlar</h2><p>Premium üyelerin öne çıkan ilanlarını hemen keşfet.</p></div>
+        <a href="#/search?q=">İlanları Keşfet →</a>
       </div>
       <div class="grid premiumGrid premiumTopGrid">
         ${premiumListings.length ? premiumListings.map(card).join('') :
           '<div class="empty premiumEmpty"><div class="emptyIcon">💎</div><b>Premium ilanlar yakında burada</b><p>Öne çıkan Premium ilanlar ana sayfanın bu bölümünde gösterilecek.</p></div>'}
       </div>
     </section>
-
     <section class="stats professionalStats">
       <div><span class="statIcon">👥</span><strong>${userCount.toLocaleString('tr-TR')}</strong><span>Kayıtlı Üye</span></div>
       <div><span class="statIcon">📣</span><strong>${activeCount.toLocaleString('tr-TR')}</strong><span>Aktif İlan</span></div>
       <div><span class="statIcon">✅</span><strong>${soldCount.toLocaleString('tr-TR')}</strong><span>Satılan İlan</span></div>
-      <div><span class="statIcon onlineDot">●</span><strong class="systemActive">Aktif</strong><span>Sistem Durumu</span></div>
+      <div><span class="statIcon onlineDot">●</span><strong class="systemActive">7/24</strong><span>İlanları Keşfet</span></div>
     </section>
-
     <section class="monthMemberSpot">
       <div class="monthMemberTitle"><span>🏆</span><div><small>PAZARELDEN</small><b>Ayın Üyesi</b></div></div>
       ${monthMember ? `
@@ -645,7 +662,6 @@ async function home() {
         <div class="monthMemberEmpty"><span>⭐</span><div><strong>Bu ayın üyesi yakında burada</strong><small>Topluluğumuzun öne çıkan üyesi bu alanda gösterilecek.</small></div></div>
       `}
     </section>
-
     <section class="homeCommunityHub">
       <div class="sectionHead"><div><small class="sectionLabel">PAZARELDEN TOPLULUĞU</small><h2>Kazan, keşfet, güvenle kullan</h2></div></div>
       <div class="communityCards">
@@ -656,27 +672,6 @@ async function home() {
       </div>
       <div class="comingSocial"><div><span>📸</span><div><small>SOSYAL MEDYA</small><strong>PazarElden Instagram</strong><p>Kampanyalar, yeni ilanlar, güvenli alışveriş tüyoları ve topluluk paylaşımları için hazırlanıyor.</p></div></div><b>Yakında</b></div>
     </section>
-    <section class="categorySection">
-      <div class="sectionHead">
-        <div><small class="sectionLabel">KEŞFET</small><h2>Kategoriler</h2></div>
-        <a href="#/categories">Tümünü Gör →</a>
-      </div>
-      <div class="cats professionalCats">
-        ${cats.map((c,i)=>`<a href="#/search?q=${encodeURIComponent(c)}"><i>${icons[i]}</i><b>${safe(c)}</b></a>`).join('')}
-      </div>
-    </section>
-
-    <section class="marketSection">
-      <div class="sectionHead">
-        <div><small class="sectionLabel">YENİ İLANLAR</small><h2>Son Eklenen İlanlar</h2></div>
-        <a href="#/search?q=">Tümünü Gör →</a>
-      </div>
-      <div class="grid">
-        ${normalListings.length ? normalListings.map(card).join('') :
-          '<div class="empty"><div class="emptyIcon">📦</div><b>Henüz aktif ilan bulunmuyor</b><p>Yeni ilanlar yayınlandığında burada görüntülenecek.</p></div>'}
-      </div>
-    </section>
-
     <section class="homeInfo professionalInfo">
       <div class="infoTitle">
         <small class="sectionLabel">NEDEN PAZARELDEN?</small>

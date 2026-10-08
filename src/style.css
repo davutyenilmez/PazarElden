@@ -2199,3 +2199,8 @@ header>nav>.peHeaderPost{display:inline-flex;align-items:center;justify-content:
   .peMobileBottomNav>a .peMobileNavIcon{font-size:22px}
   .grid{grid-template-columns:minmax(0,1fr)}
 }
+
+/* 2026-10 professional discovery-first polish */
+:focus-visible{outline:3px solid #009EAD;outline-offset:3px}
+@media(max-width:767px){.professionalHero{padding-block:22px!important}.professionalHero h1{font-size:clamp(1.45rem,6vw,2.15rem)!important;line-height:1.2!important}.professionalHero p{margin-block:10px!important}.quickSearch{gap:6px!important}.marketSection{margin-top:14px!important}.marketSection .grid{gap:12px!important}.homeCommunityHub,.monthMemberSpot,.premiumTopShowcase{margin-top:26px!important}.professionalStats{margin-block:20px!important}.homeInfo{margin-bottom:72px!important}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
