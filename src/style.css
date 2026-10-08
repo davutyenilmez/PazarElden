@@ -2084,3 +2084,14 @@ header>nav .cta{padding:10px 14px}
 .peNewMessageNotice:hover{background:#fff0f2}
 .peNewMessageNotice b{color:#9c1830}
 .peMobileBottomNav .peUnreadBadge{position:absolute;top:2px;right:8px}
+
+/* Public member trust and safety */
+.memberProfileActions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;justify-content:flex-end}
+.memberProfileActions button,.peDeleteChat{background:#fff;border:1px solid #d4dfe9;border-radius:10px;padding:10px 13px;font-weight:650;color:#344960;cursor:pointer}
+.memberProfileActions button:hover,.peDeleteChat:hover{background:#eef8fa}
+.memberProfileActions .memberMessageCta{padding:11px 14px}
+.memberTrustSummary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+.memberTrustSummary span{background:#fff;border:1px solid #e1e9f0;border-radius:12px;padding:15px;text-align:center;font-weight:700;color:#28415d}
+.peDeleteChat{margin:8px 0 8px 12px;color:#a33143;border-color:#f3ccd2}
+@media(max-width:800px){.memberTrustSummary{grid-template-columns:repeat(2,minmax(0,1fr))}.memberProfileActions{justify-content:flex-start}}
+@media(max-width:480px){.memberTrustSummary{grid-template-columns:1fr}.memberProfileActions button,.memberProfileActions .memberMessageCta{width:100%}}

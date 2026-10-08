@@ -2051,6 +2051,37 @@ window.openConversation =
   };
 
 
+
+
+window.peHideConversation = async otherId => {
+ if(!currentUser || !confirm('Sohbet kendi listenizden kaldırılsın mı? Karşı taraftaki mesajlar silinmez.'))return;
+ const {error}=await supabase.from('hidden_conversations').upsert({user_id:currentUser.id,other_id:otherId,hidden_before:new Date().toISOString()},{onConflict:'user_id,other_id'});
+ if(error)return alert('İşlem başarısız: '+error.message);
+ location.hash='#/messages';
+ await render();
+};
+
+window.peFollowMember = async (id, following) => {
+ const q=supabase.from('member_follows');
+ const r=following?await q.delete().eq('follower_id',currentUser.id).eq('followed_id',id):await q.insert({follower_id:currentUser.id,followed_id:id});
+ if(r.error) return alert(r.error.message);
+ await render();
+};
+window.peBlockMember = async (id, blocked) => {
+ if(!confirm(blocked?'Engeli kaldır?':'Bu üyeyi engelle?'))return;
+ const q=supabase.from('user_blocks');
+ const r=blocked?await q.delete().eq('blocker_id',currentUser.id).eq('blocked_id',id):await q.insert({blocker_id:currentUser.id,blocked_id:id});
+ if(r.error)return alert(r.error.message);
+ await render();
+};
+window.peReportMember = async id => {
+ const reason=prompt('Şikâyet nedeni:');
+ if(!reason?.trim())return;
+ const details=prompt('Açıklama (isteğe bağlı):')||'';
+ const {error}=await supabase.from('reports').insert({reporter_id:currentUser.id,reported_user_id:id,reason:reason.trim().slice(0,120),details:details.trim().slice(0,1000),status:'pending'});
+ alert(error?'Gönderilemedi: '+error.message:'Şikâyetiniz yönetime iletildi.');
+};
+
 window.sendMemberMessage = async (event, receiverId, listingId) => {
   event.preventDefault();
   if (!currentUser || currentUser.id === receiverId) return;
@@ -2114,11 +2145,13 @@ async function messagesPage() {
     const { data: other } = await supabase.from('profiles').select('id,full_name,is_admin').eq('id',chatUser).maybeSingle();
     if (!other) return shell('<div class="panel">Üye bulunamadı.</div>');
     const { data: history, error: historyError } = await supabase.from('messages').select('id,sender_id,receiver_id,listing_id,message,content,created_at,is_read').or('and(sender_id.eq.'+currentUser.id+',receiver_id.eq.'+chatUser+'),and(sender_id.eq.'+chatUser+',receiver_id.eq.'+currentUser.id+')').order('created_at',{ascending:true}).limit(150);
-    const relevant = (history||[]).filter(m=>(m.listing_id||'')===chatListing);
+    const {data: hiddenChat}=await supabase.from('hidden_conversations').select('hidden_before').eq('user_id',currentUser.id).eq('other_id',chatUser).maybeSingle();
+    const hiddenBefore=hiddenChat?new Date(hiddenChat.hidden_before).getTime():0;
+    const relevant=(history||[]).filter(m=>(m.listing_id||'')===chatListing && new Date(m.created_at).getTime()>hiddenBefore);
     const unreadIds = relevant.filter(m=>m.receiver_id===currentUser.id && !m.is_read).map(m=>m.id);
     if (unreadIds.length) await supabase.from('messages').update({is_read:true}).in('id',unreadIds).eq('receiver_id',currentUser.id);
     setTimeout(refreshUnreadBadges, 0);
-    return shell('<section class="panel memberChat"><a href="#/messages">← Mesajlarıma Dön</a><h1>💬 '+safe(other.full_name||'PazarElden Üyesi')+(other.is_admin?' 👑 Yönetici':'')+'</h1><div class="memberChatHistory">'+(historyError?'<p>Mesajlar yüklenemedi: '+safe(historyError.message)+'</p>':relevant.length?relevant.map(m=>'<div class="memberChatBubble '+(m.sender_id===currentUser.id?'mine':'')+'"><b>'+(m.sender_id===currentUser.id?'Siz':safe(other.full_name||'Üye'))+'</b><p>'+safe(m.content||m.message||'')+'</p><small>'+dateText(m.created_at)+'</small></div>').join(''):'<p>Henüz mesaj yok. İlk mesajı gönderin.</p>')+'</div><form onsubmit="sendMemberMessage(event,\''+safe(chatUser)+'\',\''+safe(chatListing)+'\')"><textarea id="memberMessageText" maxlength="2000" required placeholder="Mesajınızı yazın..." rows="3"></textarea><button type="submit">💬 Mesaj Gönder</button></form></section>');
+    return shell('<section class="panel memberChat"><a href="#/messages">← Mesajlarıma Dön</a><button class="peDeleteChat" onclick="peHideConversation(\''+chatUser+'\')">🗑 Listemden Kaldır</button><h1>💬 '+safe(other.full_name||'PazarElden Üyesi')+(other.is_admin?' 👑 Yönetici':'')+'</h1><div class="memberChatHistory">'+(historyError?'<p>Mesajlar yüklenemedi: '+safe(historyError.message)+'</p>':relevant.length?relevant.map(m=>'<div class="memberChatBubble '+(m.sender_id===currentUser.id?'mine':'')+'"><b>'+(m.sender_id===currentUser.id?'Siz':safe(other.full_name||'Üye'))+'</b><p>'+safe(m.content||m.message||'')+'</p><small>'+dateText(m.created_at)+'</small></div>').join(''):'<p>Henüz mesaj yok. İlk mesajı gönderin.</p>')+'</div><form onsubmit="sendMemberMessage(event,\''+safe(chatUser)+'\',\''+safe(chatListing)+'\')"><textarea id="memberMessageText" maxlength="2000" required placeholder="Mesajınızı yazın..." rows="3"></textarea><button type="submit">💬 Mesaj Gönder</button></form></section>');
   }
 
   const { data: messages } =
@@ -2136,6 +2169,8 @@ async function messagesPage() {
       );
 
 
+  const {data: hiddenRows}=await supabase.from('hidden_conversations').select('other_id,hidden_before').eq('user_id',currentUser.id);
+  const hiddenCutoffs=new Map((hiddenRows||[]).map(x=>[x.other_id,new Date(x.hidden_before).getTime()]));
   const conversations =
     new Map();
 
@@ -2149,6 +2184,7 @@ async function messagesPage() {
         ? m.receiver_id
         : m.sender_id;
 
+    if(hiddenCutoffs.has(other) && new Date(m.created_at).getTime()<=hiddenCutoffs.get(other))continue;
     const key =
       `${m.listing_id || 'none'}_${other}`;
 
@@ -2250,6 +2286,7 @@ async function messagesPage() {
         >
           Mesajları Aç
         </button>
+        <button class="peDeleteChat" onclick="peHideConversation('${m.other}')">🗑 Listemden Kaldır</button>
 
       </div>
 
@@ -2478,6 +2515,14 @@ async function sellerPage(id) {
     .eq('user_id', id)
     .eq('status', 'active');
 
+  const otherMember=currentUser && currentUser.id!==id;
+  const [followRes,blockRes,followersRes,soldRes]=await Promise.all([
+    otherMember?supabase.from('member_follows').select('follower_id').eq('follower_id',currentUser.id).eq('followed_id',id).maybeSingle():Promise.resolve({data:null}),
+    otherMember?supabase.from('user_blocks').select('blocked_id').eq('blocker_id',currentUser.id).eq('blocked_id',id).maybeSingle():Promise.resolve({data:null}),
+    supabase.from('member_follows').select('follower_id',{count:'exact',head:true}).eq('followed_id',id),
+    supabase.from('listings').select('id',{count:'exact',head:true}).eq('user_id',id).eq('status','sold')
+  ]);
+  const isFollowing=!!followRes.data,isBlocked=!!blockRes.data;
   const { data: sellerReviews, error: reviewsError } = await supabase
     .from('seller_reviews')
     .select('rating, comment, created_at')
@@ -2511,8 +2556,13 @@ async function sellerPage(id) {
           '</div>' +
           (seller.city ? '<div class="profileLocation">📍 ' + safe(seller.city) + (seller.district ? ' / ' + safe(seller.district) : '') + '</div>' : '') +
         '</div>' +
-        (currentUser && currentUser.id !== seller.id ? '<a class="memberMessageCta" href="#/messages?user='+encodeURIComponent(seller.id)+'">💬 Mesaj Gönder</a>' : '') +
+        (otherMember ? '<div class="memberProfileActions">'+
+          (!isBlocked?'<a class="memberMessageCta" href="#/messages?user='+encodeURIComponent(seller.id)+'">💬 Mesaj Gönder</a>':'')+
+          '<button onclick="peFollowMember(\''+seller.id+'\','+isFollowing+')">'+(isFollowing?'✓ Takibi Bırak':'➕ Takip Et')+'</button>'+
+          '<button onclick="peBlockMember(\''+seller.id+'\','+isBlocked+')">'+(isBlocked?'Engeli Kaldır':'🚫 Engelle')+'</button>'+
+          '<button onclick="peReportMember(\''+seller.id+'\')">⚑ Şikâyet Et</button></div>' : '') +
       '</div>' +
+      '<div class="memberTrustSummary"><span>📦 '+(listings?.length||0)+' aktif ilan</span><span>✅ '+(soldRes.count||0)+' satıldı işaretli ilan</span><span>👥 '+(followersRes.count||0)+' takipçi</span><span>⭐ '+(averageRating?safe(averageRating)+'/5':'Henüz puan yok')+'</span></div>' +
       '<div class="panel publicAbout"><h3>Hakkında</h3><p>' +
         safe(seller.about_me || 'Bu üye henüz kendini tanıtan bir açıklama eklememiş.') +
       '</p>' + (publicVisitCount !== null ? '<small>👥 ' + Number(publicVisitCount.member_visits || 0) + ' benzersiz üye ziyareti</small>' : '') +
