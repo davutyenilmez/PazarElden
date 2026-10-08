@@ -2628,6 +2628,16 @@ async function notificationsPage() {
   const notifications =
     result?.data || [];
 
+  // Opening the notification center acknowledges all visible notifications.
+  const unreadNotificationIds = notifications.filter(n=>!n.is_read).map(n=>n.id);
+  if (unreadNotificationIds.length) {
+    const {error: markError}=await supabase.from('notifications')
+      .update({is_read:true}).eq('user_id',currentUser.id).in('id',unreadNotificationIds);
+    if (markError) console.warn('Bildirimler okundu işaretlenemedi:',markError.message);
+    else notifications.forEach(n=>{if(unreadNotificationIds.includes(n.id))n.is_read=true;});
+  }
+  setTimeout(refreshUnreadBadges,0);
+
 
   const {data: newMessages} = await supabase.from('messages').select('id,sender_id,message,content,created_at').eq('receiver_id',currentUser.id).eq('is_read',false).order('created_at',{ascending:false}).limit(30);
   const senderIds = [...new Set((newMessages||[]).map(m=>m.sender_id))];
