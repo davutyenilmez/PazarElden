@@ -2375,6 +2375,17 @@ async function sellerPage(id) {
     .eq('user_id', id)
     .eq('status', 'active');
 
+  const { data: sellerReviews, error: reviewsError } = await supabase
+    .from('seller_reviews')
+    .select('rating, comment, created_at')
+    .eq('seller_id', id)
+    .order('created_at', { ascending: false })
+    .limit(30);
+  const validReviews = (sellerReviews || []).filter(review => Number(review.rating) >= 1 && Number(review.rating) <= 5);
+  const averageRating = validReviews.length
+    ? (validReviews.reduce((total, review) => total + Number(review.rating), 0) / validReviews.length).toFixed(1)
+    : null;
+
   const joined = seller.created_at
     ? new Date(seller.created_at).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })
     : '';
@@ -2402,6 +2413,15 @@ async function sellerPage(id) {
         safe(seller.about_me || 'Bu üye henüz kendini tanıtan bir açıklama eklememiş.') +
       '</p>' + (publicVisitCount !== null ? '<small>👥 ' + Number(publicVisitCount.member_visits || 0) + ' benzersiz üye ziyareti</small>' : '') +
       '</p></div>' +
+      '<div class="panel publicAbout"><h3>Satıcı Değerlendirmeleri</h3>' +
+        (reviewsError
+          ? '<p>Değerlendirmeler şu anda görüntülenemiyor.</p>'
+          : averageRating
+            ? '<p>⭐ ' + safe(averageRating) + '/5 · ' + validReviews.length + ' değerlendirme (son 30 kayıt)</p>' +
+              validReviews.slice(0, 5).map(review => '<p>⭐ ' + Number(review.rating) + '/5' +
+                (review.comment ? ' — ' + safe(review.comment) : '') + '</p>').join('')
+            : '<p>Henüz değerlendirme yok.</p>') +
+      '</div>' +
       '<div class="profileSectionTitle"><h2>Aktif İlanları</h2><span>' + (listings?.length || 0) + '</span></div>' +
       '<div class="grid">' + (listings?.length ? listings.map(card).join('') : '<div class="empty">Aktif ilan bulunmuyor.</div>') + '</div>' +
     '</section>'
