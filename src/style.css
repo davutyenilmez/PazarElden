@@ -2150,3 +2150,52 @@ header>nav>.peHeaderPost{display:inline-flex;align-items:center;justify-content:
  header>nav>.peNavPrimary,header>nav>.peListsDropdown,header>nav>.peAccountDropdown{display:none}
  header>nav>.peHeaderPost{display:inline-flex;min-width:0;min-height:42px;padding:9px 12px;font-size:12px}
 }
+
+/* Mobile-first navigation refinement — keep primary tasks one tap away */
+@media(max-width:760px){
+  html{scroll-padding-bottom:100px}
+  body{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+  header{min-height:60px;padding:9px 14px;gap:8px;flex-wrap:nowrap}
+  header>.brand{min-width:0;flex:1 1 auto}
+  header>.peHeaderSearchIcon{display:none!important}
+  header>nav{display:none!important}
+  .peNavigationBar{padding:8px 14px;gap:8px;overflow-x:auto;white-space:nowrap}
+  .peNavigationBar a[href="#/profile"]{display:none}
+  .peMobileBottomNav{
+    display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr));
+    position:fixed;bottom:0;left:0;right:0;z-index:2500;
+    height:calc(70px + env(safe-area-inset-bottom,0px));
+    padding:5px 5px calc(5px + env(safe-area-inset-bottom,0px));
+    background:#fff;border-top:1px solid #dce6ef;
+    box-shadow:0 -5px 20px rgba(11,43,79,.09);
+    gap:2px;align-items:stretch;
+  }
+  .peMobileBottomNav>a{
+    position:relative;min-width:0;min-height:56px;display:flex!important;
+    flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    border-radius:12px;padding:5px 2px;color:#52647b;font-size:10px;
+    font-weight:700;line-height:1.15;text-decoration:none;
+  }
+  .peMobileBottomNav>a .peMobileNavIcon{font-size:25px;line-height:1.1;font-weight:600}
+  .peMobileBottomNav>a.peMobileActive{color:#008b99;background:#eaf8fa}
+  .peMobileBottomNav>a.peMobilePost{color:#007f8e}
+  .peMobileBottomNav>a.peMobilePost .peMobileNavIcon{
+    display:flex;align-items:center;justify-content:center;width:40px;height:36px;
+    border-radius:12px;background:#009ead;color:white;font-size:29px;
+    box-shadow:0 3px 9px rgba(0,158,173,.22)
+  }
+  .peMobileBottomNav .peUnreadBadge{position:absolute;top:2px;right:12px}
+  .heroSearch{max-width:100%}
+  .heroSearch input{min-width:0;flex:1 1 140px}
+  .quickSearch{overflow-x:auto;flex-wrap:nowrap!important;scrollbar-width:none;padding-bottom:5px}
+  .quickSearch a,.quickSearch span{flex:0 0 auto;white-space:nowrap}
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card{min-width:0}
+  .card .pic img{object-fit:cover}
+  button,input,select,textarea{font-size:16px}
+}
+@media(max-width:370px){
+  .peMobileBottomNav>a{font-size:9px}
+  .peMobileBottomNav>a .peMobileNavIcon{font-size:22px}
+  .grid{grid-template-columns:minmax(0,1fr)}
+}
