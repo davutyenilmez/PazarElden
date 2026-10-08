@@ -340,9 +340,21 @@ function shell(content) {
 
     </header>
 
+    <div class="peNavigationBar" aria-label="Sayfa gezinme">
+      <button type="button" onclick="peGoBack()" aria-label="Önceki sayfaya dön">← Geri</button>
+      <a href="#/">⌂ Ana Sayfa</a>
+      <a href="#/profile">👤 Profilim</a>
+    </div>
     <main>
       ${content}
     </main>
+    <nav class="peMobileBottomNav" aria-label="Mobil gezinme">
+      <a href="#/">⌂<span>Ana Sayfa</span></a>
+      <a href="#/categories">▦<span>Kategoriler</span></a>
+      <a href="#/ilan-ver">＋<span>İlan Ver</span></a>
+      <a href="#/messages">✉<span>Mesajlar</span></a>
+      <a href="#/profile">♙<span>Profil</span></a>
+    </nav>
 
     <footer>
 
@@ -384,6 +396,14 @@ function shell(content) {
 /* =========================================================
    ARAMA
    ========================================================= */
+
+window.peGoBack = () => {
+  if (window.__pePreviousHash && window.__pePreviousHash !== location.hash) {
+    location.hash = window.__pePreviousHash;
+  } else {
+    location.hash = '#/';
+  }
+};
 
 window.searchNow = () => {
 
@@ -3803,10 +3823,13 @@ if (supabase) {
 }
 
 
-window.addEventListener(
-  'hashchange',
-  render
-);
+let peLastHash = location.hash || '#/';
+window.addEventListener('hashchange', () => {
+  const currentHash = location.hash || '#/';
+  if (peLastHash !== currentHash) window.__pePreviousHash = peLastHash;
+  peLastHash = currentHash;
+  render();
+});
 
 
 /* =========================================================
