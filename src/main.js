@@ -273,31 +273,18 @@ function shell(content) {
   const rank = rankInfo();
 
   const accountNav = currentUser
-    ? `
-      <div class="accountArea">
-
-        <a href="#/profile">
-          👤 ${safe(userName())}
-        </a>
-
-        ${rankBadge()}
-
-        ${
-          isPremium()
-            ? `<span class="premiumMini">💎 PREMIUM</span>`
-            : ''
-        }
-
-        <a href="#" onclick="logout();return false;">
-          Çıkış
-        </a>
-
-      </div>
-    `
-    : `
-      <a class="loginLink" href="#/login">Giriş Yap</a>
-      <a class="signupQuick" href="#/signup">👤 Üye Ol</a>
-    `;
+    ? `<details class="peHeaderDropdown peAccountDropdown">
+        <summary aria-label="Hesap menüsü">👤 <span class="peAccountName">${safe(userName())}</span> <span class="peChevron">⌄</span></summary>
+        <div class="peDropdownPanel">
+          <div class="peDropdownHeading">${safe(userName())}</div>
+          <div class="peAccountRank">${rankBadge()}${isPremium()?'<span class="premiumMini">💎 PREMIUM</span>':''}</div>
+          <a href="#/profile">👤 Profilim</a>
+          <a href="#/favorites">♡ Favorilerim</a>
+          <a href="#/following">🔔 Takiplerim</a>
+          <a href="#" onclick="logout();return false;">↪ Çıkış Yap</a>
+        </div>
+      </details>`
+    : `<a class="loginLink" href="#/login">Giriş Yap</a><a class="signupQuick" href="#/signup">👤 Üye Ol</a>`;
 
   return `
 
@@ -322,11 +309,16 @@ function shell(content) {
 
       <nav>
         ${currentUser ? `
-          <a href="#/members">👥 Üyeleri Keşfet</a>
-          <a href="#/favorites">♡ Favorilerim</a>
-          <a href="#/following">🔔 Takiplerim</a>
-          <a href="#/messages">💬 Mesajlar <span id="messageBadge"></span></a>
-          <a href="#/notifications">🔔 Bildirimler</a>
+          <a class="peNavPrimary" href="#/members">👥 <span>Keşfet</span></a>
+          <details class="peHeaderDropdown peListsDropdown">
+            <summary>♡ <span>Listelerim</span> <span class="peChevron">⌄</span></summary>
+            <div class="peDropdownPanel">
+              <a href="#/favorites">♡ Favorilerim</a>
+              <a href="#/following">🔔 Takiplerim</a>
+            </div>
+          </details>
+          <a class="peNavPrimary" href="#/messages">💬 <span>Mesajlar</span> <span id="messageBadge"></span></a>
+          <a class="peNavPrimary" href="#/notifications">🔔 <span>Bildirimler</span></a>
         ` : ''}
         ${accountNav}
 
