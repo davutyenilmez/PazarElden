@@ -3140,7 +3140,7 @@ function auth(kind) {
       </button>
 
 
-      ${!login && referralCode ? '<input id="referralCode" type="hidden" value="' + safe(referralCode) + '"><small>🎁 Davet bağlantısı algılandı. Üyeliğiniz davet eden kişiye bağlanacak.</small>' : ''}
+      ${!login ? '<div class="signupReferral"><label for="referralCode">🎁 Davet / Referans Kodu (isteğe bağlı)</label><input id="referralCode" type="text" maxlength="40" autocomplete="off" placeholder="Davet kodunuz varsa yazın" value="' + safe(referralCode) + '"><small>' + (referralCode ? 'Davet bağlantısından gelen kod otomatik dolduruldu. ' : '') + 'Kodunuz yoksa boş bırakabilirsiniz.</small></div>' : ''}
       <p id="authMsg"></p>
       ${!login ? `
         <div id="signupRulesModal" class="signupRulesModal" hidden>
@@ -3300,7 +3300,7 @@ window.doAuth =
       }
 
 
-      const referralCode = document.querySelector('#referralCode')?.value;
+      const referralCode = document.querySelector('#referralCode')?.value.trim().slice(0,40);
       if (referralCode && result.data.session) {
         await supabase.rpc('register_referral', { p_code: referralCode });
       } else if (referralCode) {
