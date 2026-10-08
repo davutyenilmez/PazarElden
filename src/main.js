@@ -1218,7 +1218,7 @@ window.reportListing =
 
     if (!reason?.trim()) return;
 
-    await safeTable(
+    const reportResult = await safeTable(
       'reports',
       () =>
         supabase
@@ -1233,9 +1233,11 @@ window.reportListing =
           })
     );
 
-    alert(
-      'Şikâyetiniz yönetime iletildi.'
-    );
+    if (!reportResult || reportResult.error) {
+      alert('Şikâyet gönderilemedi. Lütfen tekrar deneyin.');
+      return;
+    }
+    alert('Şikâyetiniz yönetime iletildi.');
 
   };
 
@@ -1739,6 +1741,17 @@ window.publishListing =
       return;
     }
 
+
+    // Dosya türü ve boyutu kullanıcı tarafında da kontrol edilir.
+    // Gerçek güvenlik için Storage bucket kuralları ayrıca uygulanmalıdır.
+    const allowedPhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    const invalidPhoto = [...(photos || [])].find(file =>
+      !allowedPhotoTypes.has(file.type) || file.size > 8 * 1024 * 1024
+    );
+    if (invalidPhoto) {
+      msg.textContent = 'Fotoğraflar JPG, PNG veya WebP olmalı ve her biri en fazla 8 MB olmalıdır.';
+      return;
+    }
 
     const fullText =
       `${title} ${description}`;
