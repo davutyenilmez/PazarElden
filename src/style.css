@@ -2076,3 +2076,11 @@ header>nav .cta{padding:10px 14px}
 @media(max-width:1250px){header{gap:10px}header .topsearch{max-width:300px}header>nav{gap:3px}header>nav .peNavPrimary,header>nav .peHeaderDropdown>summary{padding:8px 6px}header>nav .peAccountName{max-width:75px}}
 @media(max-width:1050px){header .topsearch{max-width:230px}header>nav .peNavPrimary span:not(#messageBadge){display:none}header>nav .peListsDropdown>summary span:not(.peChevron){display:none}}
 @media(max-width:700px){header>nav .peListsDropdown,header>nav .peNavPrimary{display:none}header>nav .peAccountName{display:none}header>nav .peHeaderDropdown>summary{padding:7px}header .topsearch{min-width:0}}
+
+/* Unread messages and notification indicators */
+.peUnreadBadge{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#e02436;color:#fff;font-size:11px;font-weight:800;line-height:1;box-shadow:0 0 0 2px white}
+.peUnreadBadge[hidden]{display:none!important}
+.peNewMessageNotice{display:block;margin:12px 0;border:1px solid #ffccd2!important;border-left:4px solid #e02436!important;background:#fffafa}
+.peNewMessageNotice:hover{background:#fff0f2}
+.peNewMessageNotice b{color:#9c1830}
+.peMobileBottomNav .peUnreadBadge{position:absolute;top:2px;right:8px}
