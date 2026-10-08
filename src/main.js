@@ -322,7 +322,7 @@ function shell(content) {
 
       <nav>
         ${currentUser ? `
-          <a href="#/members">👥 Üyeler</a>
+          <a href="#/members">👥 Üyeleri Keşfet</a>
           <a href="#/favorites">♡ Favorilerim</a>
           <a href="#/following">🔔 Takiplerim</a>
           <a href="#/messages">💬 Mesajlar <span id="messageBadge"></span></a>
@@ -2058,6 +2058,19 @@ window.openConversation =
   };
 
 
+window.sendMemberMessage = async (event, receiverId, listingId) => {
+  event.preventDefault();
+  if (!currentUser || currentUser.id === receiverId) return;
+  const input = document.getElementById('memberMessageText');
+  const message = (input?.value || '').trim();
+  if (!message || message.length > 2000) return;
+  const button = event.target.querySelector('button');
+  if (button) button.disabled = true;
+  const { error } = await supabase.from('messages').insert({sender_id:currentUser.id,receiver_id:receiverId,listing_id:listingId||null,message,content:message});
+  if (error) { alert('Mesaj gönderilemedi: '+error.message); if(button) button.disabled=false; return; }
+  await render();
+};
+
 async function messagesPage() {
 
   if (!currentUser) {
@@ -2078,6 +2091,17 @@ async function messagesPage() {
 
   }
 
+
+  const chatParams = new URLSearchParams(location.hash.split('?')[1] || '');
+  const chatUser = chatParams.get('user');
+  const chatListing = chatParams.get('listing') || '';
+  if (chatUser && /^[0-9a-f-]{36}$/i.test(chatUser) && chatUser !== currentUser.id) {
+    const { data: other } = await supabase.from('profiles').select('id,full_name,is_admin').eq('id',chatUser).maybeSingle();
+    if (!other) return shell('<div class="panel">Üye bulunamadı.</div>');
+    const { data: history, error: historyError } = await supabase.from('messages').select('id,sender_id,receiver_id,listing_id,message,content,created_at').or('and(sender_id.eq.'+currentUser.id+',receiver_id.eq.'+chatUser+'),and(sender_id.eq.'+chatUser+',receiver_id.eq.'+currentUser.id+')').order('created_at',{ascending:true}).limit(150);
+    const relevant = (history||[]).filter(m=>(m.listing_id||'')===chatListing);
+    return shell('<section class="panel memberChat"><a href="#/messages">← Mesajlarıma Dön</a><h1>💬 '+safe(other.full_name||'PazarElden Üyesi')+(other.is_admin?' 👑 Yönetici':'')+'</h1><div class="memberChatHistory">'+(historyError?'<p>Mesajlar yüklenemedi: '+safe(historyError.message)+'</p>':relevant.length?relevant.map(m=>'<div class="memberChatBubble '+(m.sender_id===currentUser.id?'mine':'')+'"><b>'+(m.sender_id===currentUser.id?'Siz':safe(other.full_name||'Üye'))+'</b><p>'+safe(m.content||m.message||'')+'</p><small>'+dateText(m.created_at)+'</small></div>').join(''):'<p>Henüz mesaj yok. İlk mesajı gönderin.</p>')+'</div><form onsubmit="sendMemberMessage(event,\''+safe(chatUser)+'\',\''+safe(chatListing)+'\')"><textarea id="memberMessageText" maxlength="2000" required placeholder="Mesajınızı yazın..." rows="3"></textarea><button type="submit">💬 Mesaj Gönder</button></form></section>');
+  }
 
   const { data: messages } =
     await supabase
@@ -2139,7 +2163,7 @@ async function messagesPage() {
       'PazarElden kullanıcısı';
 
     let title =
-      'İlan';
+      'Üye mesajı';
 
 
     const { data: profile } =
@@ -2191,7 +2215,7 @@ async function messagesPage() {
         </p>
 
         <p>
-          ${safe(m.content || '')}
+          ${safe(m.content || m.message || '')}
         </p>
 
         <small>
@@ -2229,7 +2253,7 @@ async function messagesPage() {
           ? rows.join('')
           : `
             <div class="empty">
-              Henüz mesajınız bulunmuyor. Diğer üyelerle mesajlaşmak için bir ilanı açıp satıcıya mesaj gönderin. Destek için <a href="#/support">Destek Merkezi</a> bölümünü kullanın.
+              Henüz mesajınız bulunmuyor. Diğer üyelerle mesajlaşmak için Üyeleri Keşfet bölümünden bir profil açın. Destek için <a href="#/support">Destek Merkezi</a> bölümünü kullanın.
             </div>
           `
       }
@@ -2460,15 +2484,16 @@ async function sellerPage(id) {
         '<div class="profileAvatar ' + (seller.is_admin ? 'adminAvatar' : '') + '">' + avatar + '</div>' +
         '<div class="profileIdentity">' +
           '<div class="profileNameRow"><h1>' + safe(seller.full_name || 'PazarElden Kullanıcısı') + '</h1>' +
-            (seller.is_admin ? '<span class="adminCrown">👑 Yönetici</span>' : '') +
+            (seller.is_admin ? '<span class="adminCrown">👑 PazarElden Kurucusu & Yöneticisi</span>' : '') +
           '</div>' +
           '<div class="profileBadges">' +
-            (seller.is_admin ? '<span class="rankBadge">👑 PazarElden Yöneticisi</span>' : '') +
+            (seller.is_admin ? '<span class="rankBadge">✓ Resmî PazarElden Yönetici Hesabı</span>' : '') +
             (seller.premium_until && new Date(seller.premium_until).getTime() > Date.now() ? '<span class="premiumMini">💎 PREMIUM</span>' : '') +
             (joined ? '<span class="profileMeta">📅 Üyelik: ' + safe(joined) + '</span>' : '') +
           '</div>' +
           (seller.city ? '<div class="profileLocation">📍 ' + safe(seller.city) + (seller.district ? ' / ' + safe(seller.district) : '') + '</div>' : '') +
         '</div>' +
+        (currentUser && currentUser.id !== seller.id ? '<a class="memberMessageCta" href="#/messages?user='+encodeURIComponent(seller.id)+'">💬 Mesaj Gönder</a>' : '') +
       '</div>' +
       '<div class="panel publicAbout"><h3>Hakkında</h3><p>' +
         safe(seller.about_me || 'Bu üye henüz kendini tanıtan bir açıklama eklememiş.') +
