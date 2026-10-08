@@ -4,11 +4,12 @@ Bu belge uygulanmamış güvenlik önlemlerini **tamamlandı** olarak göstermez
 
 ## Supabase Dashboard üzerinden yapılacaklar
 - [ ] Authentication → Security and Protection: leaked-password protection etkinleştir; yönetici hesabında MFA kur ve doğrula.
-- [ ] Storage → Buckets → listing-images: maksimum dosya boyutu 8 MiB; izinli MIME türleri image/jpeg, image/png, image/webp. Mevcut yüklemeler ve Storage policies test edilmeli.
+- [x] Storage → Buckets → listing-images: 8 MiB sınırı ve image/jpeg, image/png, image/webp MIME türleri veritabanında doğrulandı. Gerçek dosya yükleme testleri hâlâ gerekli.
 - [ ] Database → Security Advisor: SECURITY DEFINER uyarılarının her birini işlevin amacı, EXECUTE grant'leri ve içerideki auth.uid()/rol denetimleriyle incele. Halka açık ziyaret sayacı fonksiyonlarını sebepsiz kapatma.
 - [ ] Yönetici/baş moderatör/moderatör/yardımcı moderatör rollerinin yetkilerini sunucu tarafında doğrula. Rol değiştirme yalnızca ana yöneticiye ait olmalı.
 - [ ] Supabase planında otomatik yedekleme/PITR durumunu doğrula; izole ortamda geri yükleme denemesi yap. Üretim verilerini silerek test yapma.
-- [ ] İlan oluşturma, mesaj gönderme, şikâyet ve oturum açma uçlarına **sunucu tarafı** hız sınırı (rate limit) ekle. İstemci bekleme süresi güvenlik kontrolü değildir.
+- [x] İlan oluşturma (10/gün), mesaj (12/dakika), şikâyet (10/gün) için veritabanı tetikleyicili hız sınırı eklendi. Oluşturma zamanları sunucuda atanıyor ve üye güncellemelerinde korunuyor. Gerçek hesaplarla sınır testleri yapılmalı.
+- [ ] Oturum açma uçlarında Supabase Auth hız sınırlarını ve CAPTCHA seçeneklerini doğrula.
 
 ## Test senaryoları
 - [ ] Giriş yapmamış ziyaretçi özel mesajları, telefon paylaşımını ve taslak ilanları okuyamıyor.
