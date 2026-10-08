@@ -2035,3 +2035,6 @@ footer small {
 
 /* Support ticket form */
 .supportPage{max-width:850px;margin:24px auto;padding:0 14px}.supportPage>.panel{margin:16px 0;padding:24px}.supportForm{display:flex;flex-direction:column;gap:10px;margin-top:18px}.supportForm input,.supportForm textarea{width:100%;border:1px solid #cbd5e1;border-radius:10px;padding:12px;font:inherit}.supportForm label{font-weight:700}.supportForm button{align-self:flex-start;background:#0b2b4f;color:white;border:0;border-radius:10px;padding:12px 18px;cursor:pointer}.supportForm button:disabled{opacity:.6}.supportTicket{padding:14px 0;border-top:1px solid #e2e8f0}.supportTicket small{display:block;color:#64748b;margin-top:5px}.supportReply{background:#e8f7f8;padding:12px;border-radius:8px}#supportStatus{min-height:1.4em}
+
+/* Optional invitation code on signup */
+.signupReferral{display:flex;flex-direction:column;gap:7px;text-align:left;margin:12px 0 4px}.signupReferral label{font-weight:700;color:#0b2b4f}.signupReferral input{width:100%;box-sizing:border-box;border:1px solid #cbd5e1;border-radius:10px;padding:12px;font:inherit}.signupReferral small{color:#64748b}
