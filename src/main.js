@@ -530,6 +530,7 @@ function card(x) {
 
 async function home() {
 
+  // Her ana sayfa ziyaretinde güncel ilanları sunucudan oku.
   const listings = await getListings();
 
   let userCount = 0;
@@ -545,7 +546,12 @@ async function home() {
     const active = await safeTable('listings', () =>
       supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'active')
     );
-    activeCount = active?.count || activeCount;
+    // 0 da geçerli bir sonuçtur; eski/fallback sayı ile değiştirme.
+    if (!active?.error && typeof active?.count === 'number') {
+      activeCount = active.count;
+    } else {
+      console.warn('Aktif ilan sayısı alınamadı:', active?.error?.message || 'bağlantı hatası');
+    }
 
     const sold = await safeTable('listings', () =>
       supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', 'sold')
