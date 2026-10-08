@@ -2148,3 +2148,20 @@ header>nav .cta{padding:10px 14px}
 @media(max-width:760px){
   header>nav.peDesktopNav>.peHeaderPost{margin-left:4px}
 }
+
+/* Primary CTA beside search instead of the far-right account menu */
+@media(min-width:761px){
+  header>.peSearchPost{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-height:44px;padding:10px 16px;white-space:nowrap;margin-right:4px}
+  header>nav{margin-left:auto}
+}
+@media(min-width:761px) and (max-width:1350px){
+  header .brand{order:0}
+  header .topsearch{order:1;flex:1 1 200px;min-width:160px;max-width:440px}
+  header>.peSearchPost{order:2}
+  header>nav{order:3;flex:1 1 100%;justify-content:flex-end}
+}
+@media(max-width:760px){
+  header>.peSearchPost{order:2;display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 12px;margin-left:auto;white-space:nowrap}
+  header>nav{order:2;margin-left:0}
+  header .topsearch{order:3;flex-basis:100%}
+}

@@ -307,6 +307,8 @@ function shell(content) {
 
       </div>
 
+      <a class="cta peSearchPost" href="#/ilan-ver">+ İlan Ver</a>
+
       <nav>
         ${currentUser ? `
           <a class="peNavPrimary" href="#/members">👥 <span>Keşfet</span></a>
@@ -322,12 +324,7 @@ function shell(content) {
         ` : ''}
         ${accountNav}
 
-        <a
-          class="cta"
-          href="#/ilan-ver"
-        >
-          + İlan Ver
-        </a>
+
 
       </nav>
 
