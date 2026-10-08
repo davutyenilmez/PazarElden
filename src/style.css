@@ -2013,3 +2013,19 @@ footer small {
 .adminWorkspace{max-width:1500px;margin:0 auto;display:grid;grid-template-columns:215px minmax(0,1fr);gap:18px;align-items:start}.adminSideNav{position:sticky;top:82px;background:#092744;border-radius:15px;padding:10px;box-shadow:0 14px 38px rgba(7,30,56,.16)}.adminSideTitle{padding:13px 12px;color:#fff;font-weight:900;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:7px}.adminSideNav a{display:block;padding:10px 11px;border-radius:8px;color:#dce8f4;text-decoration:none;font-size:12px;font-weight:700;margin:2px 0}.adminSideNav a:hover,.adminSideNav .active{background:#0d9dac;color:#fff}.adminMembers{min-width:0}.adminHeader{padding:4px 2px 12px!important}.adminHeader h1{font-size:24px!important;margin-bottom:4px!important}.adminModuleNav{display:none!important}.memberStats{grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:8px!important}.adminStat{min-height:72px!important;padding:10px!important}.adminStat b{font-size:20px!important}.adminStat span{font-size:10px!important}.adminControlRow{background:#fff;border:1px solid #e8edf3!important;border-radius:10px;padding:11px!important;margin-bottom:7px}.adminSectionHead{margin-top:22px!important}
 .auth{max-width:420px!important;margin:42px auto!important;padding:24px!important}.auth h1{font-size:25px;margin:0 0 10px}.auth input{min-height:44px!important;margin-bottom:9px!important}.auth>button{min-height:44px!important}
 @media(max-width:1050px){.profileWorkspace,.adminWorkspace{grid-template-columns:1fr}.profileSideNav,.adminSideNav{position:static;display:flex;overflow:auto;gap:5px}.profileSideNav a,.profileSideNav button,.adminSideNav a{width:auto;white-space:nowrap}.adminSideTitle{display:none}.profileOverviewGrid{grid-template-columns:1fr}.profileOverviewRight{grid-template-columns:1fr 1fr}.memberStats{grid-template-columns:repeat(4,minmax(0,1fr))!important}}@media(max-width:700px){.professionalHero{padding:24px 14px!important}.heroInner h1{font-size:31px!important}.profileListingGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.profileOverviewRight{grid-template-columns:1fr}.profileQuickStats{grid-template-columns:repeat(2,1fr)!important}.memberStats{grid-template-columns:repeat(2,minmax(0,1fr))!important}.profileSideNav span{display:none}.profileSideNav a,.profileSideNav button{padding:10px}.profileWorkspace .profileHero{align-items:flex-start!important}.profileEditBtn{font-size:11px!important;padding:9px!important}}
+
+/* PazarElden: easy navigation */
+.peNavigationBar{max-width:1200px;margin:12px auto 0;padding:0 18px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.peNavigationBar button,.peNavigationBar a{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:9px 16px;border:1px solid #d7dce4;border-radius:12px;background:#fff;color:#263444;font-weight:700;text-decoration:none;cursor:pointer}
+.peNavigationBar button:hover,.peNavigationBar a:hover{background:#f1f5f9}
+.peMobileBottomNav{display:none}
+@media(max-width:700px){
+ .peNavigationBar{padding:0 12px;margin:8px auto;gap:6px}
+ .peNavigationBar button,.peNavigationBar a{padding:7px 10px;font-size:12px;min-height:38px}
+ .peMobileBottomNav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#fff;border-top:1px solid #dce1e8;padding:6px 4px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 16px #00000010}
+ .peMobileBottomNav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:22px;text-decoration:none;color:#23354a;min-height:48px}
+ .peMobileBottomNav span{font-size:10px;font-weight:700;white-space:nowrap}
+ body{padding-bottom:calc(75px + env(safe-area-inset-bottom))}
+ .profileSideNav span{display:inline!important}
+ .profileSideNav a,.profileSideNav button{font-size:12px;min-height:40px}
+}
