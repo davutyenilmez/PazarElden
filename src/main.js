@@ -2276,7 +2276,7 @@ async function profilePage() {
         <a href="#/messages">💬 <span>Mesajlarım</span></a>
         <a href="#/favorites">♡ <span>Favorilerim</span></a>
         <a href="#/following">♧ <span>Takiplerim</span></a>
-        <a href="#/rewards">🎁 <span>Ödül Merkezi</span></a>
+        <a href="#/rewards" onclick="openProfileSection(event, 'rewardCenter')">🎁 <span>Ödül Merkezi</span></a>
         <a href="#/premium">💎 <span>Premium Üyelik</span></a>
         <button onclick="toggleProfileEditor()">⚙ <span>Hesap Ayarları</span></button>
         ${p.is_admin?'<a class="adminSideLink" href="#/admin">👑 <span>Yönetim Merkezi</span></a>':''}
