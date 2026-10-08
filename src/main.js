@@ -317,8 +317,8 @@ function shell(content) {
               <a href="#/following">🔔 Takiplerim</a>
             </div>
           </details>
-          <a class="peNavPrimary" href="#/messages">💬 <span>Mesajlar</span> <span id="messageBadge"></span></a>
-          <a class="peNavPrimary" href="#/notifications">🔔 <span>Bildirimler</span></a>
+          <a class="peNavPrimary" href="#/messages">💬 <span>Mesajlar</span> <span class="peUnreadBadge" id="messageBadge" hidden></span></a>
+          <a class="peNavPrimary" href="#/notifications">🔔 <span>Bildirimler</span> <span class="peUnreadBadge" id="notificationBadge" hidden></span>
         ` : ''}
         ${accountNav}
 
@@ -346,7 +346,7 @@ function shell(content) {
       <a href="#/">⌂<span>Ana Sayfa</span></a>
       <a href="#/members">👥<span>Üyeler</span></a>
       <a href="#/ilan-ver">＋<span>İlan Ver</span></a>
-      <a href="#/messages">✉<span>Mesajlar</span></a>
+      <a href="#/messages">✉<span>Mesajlar</span><span class="peUnreadBadge" id="mobileMessageBadge" hidden></span></a>
       <a href="#/profile">♙<span>Profil</span></a>
     </nav>
 
@@ -2064,6 +2064,28 @@ window.sendMemberMessage = async (event, receiverId, listingId) => {
   await render();
 };
 
+let peUnreadRequestPending = false;
+async function refreshUnreadBadges() {
+  if (!currentUser || !supabase || peUnreadRequestPending) return;
+  peUnreadRequestPending = true;
+  try {
+    const [msg, note] = await Promise.all([
+      supabase.from('messages').select('id').eq('receiver_id',currentUser.id).eq('is_read',false).limit(100),
+      supabase.from('notifications').select('id').eq('user_id',currentUser.id).eq('is_read',false).limit(100)
+    ]);
+    const count = msg.error ? 0 : (msg.data||[]).length;
+    const noteCount = note.error ? 0 : (note.data||[]).length;
+    for (const id of ['messageBadge','mobileMessageBadge']) {
+      const el = document.getElementById(id);
+      if (el) { el.hidden = !count; el.textContent = count >= 100 ? '99+' : String(count); }
+    }
+    const badge = document.getElementById('notificationBadge');
+    if (badge) { const n=count+noteCount;badge.hidden=!n;badge.textContent=n>=100?'99+':String(n); }
+    document.title = count ? '('+count+') PazarElden' : 'PazarElden';
+  } catch(e) { console.warn('Bildirim kontrolü:',e); }
+  finally {peUnreadRequestPending=false; }
+}
+
 async function messagesPage() {
 
   if (!currentUser) {
@@ -2091,8 +2113,11 @@ async function messagesPage() {
   if (chatUser && /^[0-9a-f-]{36}$/i.test(chatUser) && chatUser !== currentUser.id) {
     const { data: other } = await supabase.from('profiles').select('id,full_name,is_admin').eq('id',chatUser).maybeSingle();
     if (!other) return shell('<div class="panel">Üye bulunamadı.</div>');
-    const { data: history, error: historyError } = await supabase.from('messages').select('id,sender_id,receiver_id,listing_id,message,content,created_at').or('and(sender_id.eq.'+currentUser.id+',receiver_id.eq.'+chatUser+'),and(sender_id.eq.'+chatUser+',receiver_id.eq.'+currentUser.id+')').order('created_at',{ascending:true}).limit(150);
+    const { data: history, error: historyError } = await supabase.from('messages').select('id,sender_id,receiver_id,listing_id,message,content,created_at,is_read').or('and(sender_id.eq.'+currentUser.id+',receiver_id.eq.'+chatUser+'),and(sender_id.eq.'+chatUser+',receiver_id.eq.'+currentUser.id+')').order('created_at',{ascending:true}).limit(150);
     const relevant = (history||[]).filter(m=>(m.listing_id||'')===chatListing);
+    const unreadIds = relevant.filter(m=>m.receiver_id===currentUser.id && !m.is_read).map(m=>m.id);
+    if (unreadIds.length) await supabase.from('messages').update({is_read:true}).in('id',unreadIds).eq('receiver_id',currentUser.id);
+    setTimeout(refreshUnreadBadges, 0);
     return shell('<section class="panel memberChat"><a href="#/messages">← Mesajlarıma Dön</a><h1>💬 '+safe(other.full_name||'PazarElden Üyesi')+(other.is_admin?' 👑 Yönetici':'')+'</h1><div class="memberChatHistory">'+(historyError?'<p>Mesajlar yüklenemedi: '+safe(historyError.message)+'</p>':relevant.length?relevant.map(m=>'<div class="memberChatBubble '+(m.sender_id===currentUser.id?'mine':'')+'"><b>'+(m.sender_id===currentUser.id?'Siz':safe(other.full_name||'Üye'))+'</b><p>'+safe(m.content||m.message||'')+'</p><small>'+dateText(m.created_at)+'</small></div>').join(''):'<p>Henüz mesaj yok. İlk mesajı gönderin.</p>')+'</div><form onsubmit="sendMemberMessage(event,\''+safe(chatUser)+'\',\''+safe(chatListing)+'\')"><textarea id="memberMessageText" maxlength="2000" required placeholder="Mesajınızı yazın..." rows="3"></textarea><button type="submit">💬 Mesaj Gönder</button></form></section>');
   }
 
@@ -2553,6 +2578,10 @@ async function notificationsPage() {
     result?.data || [];
 
 
+  const {data: newMessages} = await supabase.from('messages').select('id,sender_id,message,content,created_at').eq('receiver_id',currentUser.id).eq('is_read',false).order('created_at',{ascending:false}).limit(30);
+  const senderIds = [...new Set((newMessages||[]).map(m=>m.sender_id))];
+  const {data: senders} = senderIds.length ? await supabase.from('profiles').select('id,full_name').in('id',senderIds) : {data:[]};
+  const senderNames = new Map((senders||[]).map(p=>[p.id,p.full_name]));
   return shell(`
 
     <section>
@@ -2561,6 +2590,7 @@ async function notificationsPage() {
         🔔 Bildirimler
       </h1>
 
+      ${(newMessages||[]).map(m=>`<a class="panel notification peNewMessageNotice" href="#/messages?user=${encodeURIComponent(m.sender_id)}"><b>🔴 Yeni mesaj · ${safe(senderNames.get(m.sender_id)||'PazarElden Üyesi')}</b><p>${safe((m.content||m.message||'').slice(0,160))}</p><small>${dateText(m.created_at)} · Mesajı aç →</small></a>`).join('')}
       ${
         notifications.length
           ? notifications
@@ -2584,7 +2614,7 @@ async function notificationsPage() {
                 `
               )
               .join('')
-          : `
+          : (newMessages||[]).length ? '' : `
             <div class="empty">
               Henüz bildiriminiz yok.
             </div>
@@ -3836,6 +3866,7 @@ async function render() {
 
     app.innerHTML =
       html;
+    refreshUnreadBadges();
     if (path === '/rewards' || path === 'rewardCenter' || path === '/rewardCenter') {
       const rewardSection = document.getElementById('rewardCenter');
       if (rewardSection) {
@@ -3884,3 +3915,6 @@ window.addEventListener('hashchange', () => {
    ========================================================= */
 
 render();
+
+setInterval(refreshUnreadBadges,15000);
+window.addEventListener('focus',refreshUnreadBadges);
