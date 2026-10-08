@@ -2272,7 +2272,7 @@ async function profilePage() {
     <section class="profileWorkspace">
       <aside class="profileSideNav">
         <a class="active" href="#/profile">⌂ <span>Genel Bakış</span></a>
-        <a href="#profileListings">▣ <span>İlanlarım</span></a>
+        <a href="#profileListings" onclick="openProfileSection(event, 'profileListings')">▣ <span>İlanlarım</span></a>
         <a href="#/messages">💬 <span>Mesajlarım</span></a>
         <a href="#/favorites">♡ <span>Favorilerim</span></a>
         <a href="#/following">♧ <span>Takiplerim</span></a>
@@ -2305,7 +2305,7 @@ async function profilePage() {
             <div class="profileQuickStats">
               <div><b>📦 ${mineRows.length}</b><span>Toplam İlan</span></div><div><b>🟢 ${activeMine}</b><span>Aktif İlan</span></div><div><b>✅ ${soldMine}</b><span>Satılan</span></div><div><b>♥ ${Number(favRes.count||0)}</b><span>Favori</span></div><div><b>⭐ ${avgRating}</b><span>${reviews.length} Değerlendirme</span></div>
             </div>
-            <div class="panel profileListingsPanel" id="profileListings"><div class="profilePanelHead"><h3>Son İlanlarım</h3><a href="#profileAllListings">Tüm İlanlarım →</a></div><div class="profileListingGrid">${latest.length?latest.map(card).join(''):'<div class="empty">Henüz ilanınız yok. <a href="#/ilan-ver">İlk ilanını ver →</a></div>'}</div></div>
+            <div class="panel profileListingsPanel" id="profileListings"><div class="profilePanelHead"><h3>Son İlanlarım</h3><a href="#profileAllListings" onclick="openProfileSection(event, 'profileAllListings')">Tüm İlanlarım →</a></div><div class="profileListingGrid">${latest.length?latest.map(card).join(''):'<div class="empty">Henüz ilanınız yok. <a href="#/ilan-ver">İlk ilanını ver →</a></div>'}</div></div>
             <div class="panel compactAbout"><h3>Hakkımda</h3><p>${safe(p.about_me||'Henüz bir tanıtım yazısı eklenmemiş.')}</p></div>
             <div class="panel feedbackPanel"><div><small>💬 PAZARELDEN</small><h3>Görüş ve Öneriler</h3><p>Siteyi geliştirmemize yardımcı ol.</p></div><button onclick="sendSuggestion()">Gönder</button></div>
           </div>
@@ -3411,7 +3411,7 @@ async function adminPage() {
 
   return shell(`
     <section class="adminWorkspace">
-      <aside class="adminSideNav"><div class="adminSideTitle">👑 Yönetim Merkezi</div><a class="active" href="#adminOverview">⌂ Genel Bakış</a><a href="#adminNewMembers">👥 Üyeler</a><a href="#adminRoles">🔐 Rol ve Yetkiler</a><a href="#adminModeration">🛡️ İlan Moderasyonu</a><a href="#adminListings">📦 İlan Yönetimi</a><a href="#adminFeedback">💬 Görüş & Öneriler</a><a href="#adminReports">🚩 Raporlar</a><a href="#adminHistory">↶ İşlem Geçmişi</a><a href="#/">👁 Siteyi Gör</a></aside>
+      <aside class="adminSideNav"><div class="adminSideTitle">👑 Yönetim Merkezi</div><a class="active" href="#adminOverview" onclick="openProfileSection(event, 'adminOverview')">⌂ Genel Bakış</a><a href="#adminNewMembers" onclick="openProfileSection(event, 'adminNewMembers')">👥 Üyeler</a><a href="#adminRoles" onclick="openProfileSection(event, 'adminRoles')">🔐 Rol ve Yetkiler</a><a href="#adminModeration" onclick="openProfileSection(event, 'adminModeration')">🛡️ İlan Moderasyonu</a><a href="#adminListings" onclick="openProfileSection(event, 'adminListings')">📦 İlan Yönetimi</a><a href="#adminFeedback" onclick="openProfileSection(event, 'adminFeedback')">💬 Görüş & Öneriler</a><a href="#adminReports" onclick="openProfileSection(event, 'adminReports')">🚩 Raporlar</a><a href="#adminHistory" onclick="openProfileSection(event, 'adminHistory')">↶ İşlem Geçmişi</a><a href="#/">👁 Siteyi Gör</a></aside>
       <section class="adminMembers" id="adminOverview">
       <div class="adminHeader">
         <h1>👑 Yönetim Paneli</h1>
@@ -3422,16 +3422,16 @@ async function adminPage() {
         <div class="newMemberNotice">
           <span class="newMemberPulse">●</span>
           <div><strong>${unseenUsers.length} yeni üye kaydı</strong><small>Son kontrolünüzden sonra PazarElden'e yeni üye katıldı.</small></div>
-          <a href="#adminNewMembers">Üyeleri Gör ↓</a>
+          <a href="#adminNewMembers" onclick="openProfileSection(event, 'adminNewMembers')">Üyeleri Gör ↓</a>
         </div>
       ` : ''}
 
       <div class="adminModuleNav">
-        <a href="#adminNewMembers">👥 Üyeler</a>
-        <a href="#adminModeration">🛡️ Moderasyon</a>
-        <a href="#adminListings">📦 İlan Yönetimi</a>
-        <a href="#adminFeedback">💬 Görüş & Öneriler</a>
-        <a href="#adminRoles">🔐 Yetkilendirme</a>
+        <a href="#adminNewMembers" onclick="openProfileSection(event, 'adminNewMembers')">👥 Üyeler</a>
+        <a href="#adminModeration" onclick="openProfileSection(event, 'adminModeration')">🛡️ Moderasyon</a>
+        <a href="#adminListings" onclick="openProfileSection(event, 'adminListings')">📦 İlan Yönetimi</a>
+        <a href="#adminFeedback" onclick="openProfileSection(event, 'adminFeedback')">💬 Görüş & Öneriler</a>
+        <a href="#adminRoles" onclick="openProfileSection(event, 'adminRoles')">🔐 Yetkilendirme</a>
       </div>
 
             <div class="adminGrid memberStats">
