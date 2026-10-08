@@ -2860,7 +2860,7 @@ function privacyPage() {
 async function supportPage() {
   if (!currentUser) return shell('<section class="supportPage"><h1>💬 Destek</h1><div class="panel"><p>Destek talebi göndermek için giriş yapmanız gerekiyor.</p><a href="#/login">Giriş Yap</a></div></section>');
   const { data: requests, error } = await supabase.from('user_suggestions').select('id,title,description,status,admin_note,created_at').eq('user_id',currentUser.id).like('title','[Destek]%').order('created_at',{ascending:false}).limit(20);
-  return shell(`<section class="supportPage"><h1>💬 Destek Merkezi</h1><div class="panel"><h3>Destek Talebi Oluştur</h3><p>Bir sorun veya sorunuz varsa yönetime iletin. Bu bölüm canlı sohbet değil, destek talebi sistemidir.</p><form class="supportForm" onsubmit="submitSupportTicket(event)"><label for="supportSubject">Konu</label><input id="supportSubject" required minlength="3" maxlength="100" placeholder="Örn. Mesaj gönderemiyorum"><label for="supportDescription">Mesajınız</label><textarea id="supportDescription" required minlength="10" maxlength="1500" rows="6" placeholder="Yaşadığınız sorunu açıklayın"></textarea><button id="supportSubmit" type="submit">💬 Destek Talebini Gönder</button><p id="supportStatus" role="status" aria-live="polite"></p></form></div><div class="panel"><h3>Önceki Destek Taleplerim</h3>${error?'<p>Talepler yüklenemedi. Lütfen daha sonra yeniden deneyin.</p>':requests?.length?requests.map(x=>`<article class="supportTicket"><strong>${safe(x.title.replace(/^\\[Destek\\]\\s*/,''))}</strong><small>${safe(dateText(x.created_at))} · ${safe(x.status||'new')}</small><p>${safe(x.description)}</p>${x.admin_note?'<p class="supportReply"><strong>Yönetim yanıtı:</strong> '+safe(x.admin_note)+'</p>':''}</article>`).join(''):'<p>Henüz destek talebiniz yok.</p>'}</div></section>`);
+  return shell(`<section class="supportPage"><h1>💬 Destek Merkezi</h1><div class="panel"><h3>Destek Talebi Oluştur</h3><p>Bir sorun veya sorunuz varsa yönetime iletin. Bu bölüm canlı sohbet değil, destek talebi sistemidir.</p><form class="supportForm" onsubmit="submitSupportTicket(event)"><label for="supportSubject">Konu</label><input id="supportSubject" required minlength="3" maxlength="100" placeholder="Örn. Mesaj gönderemiyorum"><label for="supportDescription">Mesajınız</label><textarea id="supportDescription" required minlength="10" maxlength="1500" rows="6" placeholder="Yaşadığınız sorunu açıklayın"></textarea><button id="supportSubmit" type="submit">💬 Destek Talebini Gönder</button><p id="supportStatus" role="status" aria-live="polite"></p></form></div><div class="panel"><h3>Önceki Destek Taleplerim</h3>${error?'<p>Talepler yüklenemedi. Lütfen daha sonra yeniden deneyin.</p>':requests?.length?requests.map(x=>`<article class="supportTicket"><strong>${safe(x.title.startsWith('[Destek] ')?x.title.slice(9):x.title)}</strong><small>${safe(dateText(x.created_at))} · ${safe(x.status||'new')}</small><p>${safe(x.description)}</p>${x.admin_note?'<p class="supportReply"><strong>Yönetim yanıtı:</strong> '+safe(x.admin_note)+'</p>':''}</article>`).join(''):'<p>Henüz destek talebiniz yok.</p>'}</div></section>`);
 }
 window.submitSupportTicket = async event => {
   event.preventDefault();
@@ -3758,7 +3758,7 @@ async function render() {
   ) {
 
     html =
-      supportPage();
+      await supportPage();
 
 
   } else if (
