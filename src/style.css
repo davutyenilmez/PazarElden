@@ -2165,3 +2165,80 @@ header>nav .cta{padding:10px 14px}
   header>nav{order:2;margin-left:0}
   header .topsearch{order:3;flex-basis:100%}
 }
+
+/* Definitive navigation fix: separate menu from search and post button.
+   Prevent overlapping hit targets on desktop and tablet. */
+@media(min-width:761px){
+  header{
+    display:grid!important;
+    grid-template-columns:max-content minmax(180px,1fr) max-content;
+    grid-template-rows:auto auto;
+    align-items:center;
+    column-gap:18px;
+    row-gap:8px;
+    padding-top:10px;
+    padding-bottom:10px;
+    overflow:visible;
+  }
+  header>.brand{grid-column:1;grid-row:1;order:unset}
+  header>.topsearch{
+    grid-column:2;grid-row:1;order:unset;
+    width:100%;max-width:none;min-width:0;
+    flex:none;
+  }
+  header>.peSearchPost{
+    grid-column:3;grid-row:1;order:unset;
+    margin:0!important;
+    min-height:44px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+  }
+  header>nav,header>nav.peDesktopNav{
+    grid-column:1/-1;grid-row:2;order:unset;
+    width:100%;min-width:0;
+    margin:0!important;
+    display:flex!important;
+    flex:unset!important;
+    flex-wrap:wrap;
+    justify-content:flex-end!important;
+    align-items:center;
+    column-gap:12px!important;
+    row-gap:8px;
+    padding:4px 0 0;
+    position:relative;
+    overflow:visible;
+  }
+  header>nav>.peNavPrimary,
+  header>nav>.peHeaderDropdown>summary,
+  header>nav.peDesktopNav>.peNavPrimary,
+  header>nav.peDesktopNav>.peHeaderDropdown>summary{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    box-sizing:border-box;
+    position:relative;
+    min-height:42px;
+    padding:10px 13px!important;
+    margin:0!important;
+    line-height:1.2;
+    white-space:nowrap;
+    border-radius:9px;
+  }
+  header>nav>.peHeaderDropdown{position:relative;flex:0 0 auto}
+  header>nav>.peHeaderDropdown>.peDropdownPanel{
+    position:absolute;
+    top:calc(100% + 8px);
+    right:0;
+    z-index:2000;
+  }
+  header>nav>.peNavPrimary span:not(.peUnreadBadge),
+  header>nav>.peListsDropdown>summary span:not(.peChevron){
+    display:inline!important;
+  }
+}
+@media(max-width:760px){
+  header{overflow:visible}
+  header>nav{position:relative;overflow:visible}
+  header>nav .peHeaderDropdown>.peDropdownPanel{z-index:2000}
+}
