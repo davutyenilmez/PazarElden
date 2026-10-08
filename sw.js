@@ -11,8 +11,8 @@ self.addEventListener('fetch',event=>{
     return;
   }
   if(!CORE.some(path=>new URL(path,self.registration.scope).href===url.href))return;
-  event.respondWith(caches.match(request).then(cached=>cached||fetch(request).then(response=>{
+  event.respondWith(fetch(request).then(response=>{
     if(response.ok){const copy=response.clone();event.waitUntil(caches.open(CACHE).then(cache=>cache.put(request,copy)));}
     return response;
-  })));
+  }).catch(()=>caches.match(request)));
 });
