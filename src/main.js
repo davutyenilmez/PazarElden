@@ -2051,6 +2051,28 @@ window.openConversation =
   };
 
 
+
+window.peFollowMember = async (id, following) => {
+ const q=supabase.from('member_follows');
+ const r=following?await q.delete().eq('follower_id',currentUser.id).eq('followed_id',id):await q.insert({follower_id:currentUser.id,followed_id:id});
+ if(r.error) return alert(r.error.message);
+ await render();
+};
+window.peBlockMember = async (id, blocked) => {
+ if(!confirm(blocked?'Engeli kaldır?':'Bu üyeyi engelle?'))return;
+ const q=supabase.from('user_blocks');
+ const r=blocked?await q.delete().eq('blocker_id',currentUser.id).eq('blocked_id',id):await q.insert({blocker_id:currentUser.id,blocked_id:id});
+ if(r.error)return alert(r.error.message);
+ await render();
+};
+window.peReportMember = async id => {
+ const reason=prompt('Şikâyet nedeni:');
+ if(!reason?.trim())return;
+ const details=prompt('Açıklama (isteğe bağlı):')||'';
+ const {error}=await supabase.from('reports').insert({reporter_id:currentUser.id,reported_user_id:id,reason:reason.trim().slice(0,120),details:details.trim().slice(0,1000),status:'pending'});
+ alert(error?'Gönderilemedi: '+error.message:'Şikâyetiniz yönetime iletildi.');
+};
+
 window.sendMemberMessage = async (event, receiverId, listingId) => {
   event.preventDefault();
   if (!currentUser || currentUser.id === receiverId) return;
@@ -2478,6 +2500,14 @@ async function sellerPage(id) {
     .eq('user_id', id)
     .eq('status', 'active');
 
+  const otherMember=currentUser && currentUser.id!==id;
+  const [followRes,blockRes,followersRes,soldRes]=await Promise.all([
+    otherMember?supabase.from('member_follows').select('follower_id').eq('follower_id',currentUser.id).eq('followed_id',id).maybeSingle():Promise.resolve({data:null}),
+    otherMember?supabase.from('user_blocks').select('blocked_id').eq('blocker_id',currentUser.id).eq('blocked_id',id).maybeSingle():Promise.resolve({data:null}),
+    supabase.from('member_follows').select('follower_id',{count:'exact',head:true}).eq('followed_id',id),
+    supabase.from('listings').select('id',{count:'exact',head:true}).eq('user_id',id).eq('status','sold')
+  ]);
+  const isFollowing=!!followRes.data,isBlocked=!!blockRes.data;
   const { data: sellerReviews, error: reviewsError } = await supabase
     .from('seller_reviews')
     .select('rating, comment, created_at')
@@ -2511,8 +2541,13 @@ async function sellerPage(id) {
           '</div>' +
           (seller.city ? '<div class="profileLocation">📍 ' + safe(seller.city) + (seller.district ? ' / ' + safe(seller.district) : '') + '</div>' : '') +
         '</div>' +
-        (currentUser && currentUser.id !== seller.id ? '<a class="memberMessageCta" href="#/messages?user='+encodeURIComponent(seller.id)+'">💬 Mesaj Gönder</a>' : '') +
+        (otherMember ? '<div class="memberProfileActions">'+
+          (!isBlocked?'<a class="memberMessageCta" href="#/messages?user='+encodeURIComponent(seller.id)+'">💬 Mesaj Gönder</a>':'')+
+          '<button onclick="peFollowMember(\''+seller.id+'\','+isFollowing+')">'+(isFollowing?'✓ Takibi Bırak':'➕ Takip Et')+'</button>'+
+          '<button onclick="peBlockMember(\''+seller.id+'\','+isBlocked+')">'+(isBlocked?'Engeli Kaldır':'🚫 Engelle')+'</button>'+
+          '<button onclick="peReportMember(\''+seller.id+'\')">⚑ Şikâyet Et</button></div>' : '') +
       '</div>' +
+      '<div class="memberTrustSummary"><span>📦 '+(listings?.length||0)+' aktif ilan</span><span>✅ '+(soldRes.count||0)+' satıldı işaretli ilan</span><span>👥 '+(followersRes.count||0)+' takipçi</span><span>⭐ '+(averageRating?safe(averageRating)+'/5':'Henüz puan yok')+'</span></div>' +
       '<div class="panel publicAbout"><h3>Hakkında</h3><p>' +
         safe(seller.about_me || 'Bu üye henüz kendini tanıtan bir açıklama eklememiş.') +
       '</p>' + (publicVisitCount !== null ? '<small>👥 ' + Number(publicVisitCount.member_visits || 0) + ' benzersiz üye ziyareti</small>' : '') +
