@@ -2329,7 +2329,7 @@ window.openProfileSection = (event, sectionId) => {
     if (details) details.open = true;
     return;
   }
-  location.hash = '#/profile';
+  location.hash = sectionId.startsWith('admin') ? '#/admin' : '#/profile';
   setTimeout(() => {
     const target = document.getElementById(sectionId);
     if (target) {
@@ -3365,6 +3365,13 @@ async function adminPage() {
     countOf('offers'), countOf('messages'), countOf('reports',q=>q.in('status',['open','pending'])),
     countOf('profiles',q=>q.gt('premium_until',new Date().toISOString())), countOf('user_suggestions',q=>q.eq('status','new'))
   ]);
+  const [reportResult, auditResult] = await Promise.all([
+    supabase.from('reports').select('id,status,created_at').order('created_at',{ascending:false}).limit(30),
+    supabase.from('admin_audit_logs').select('id,action,created_at').order('created_at',{ascending:false}).limit(30)
+  ]);
+  const adminReports = reportResult.data || [];
+  const adminHistory = auditResult.data || [];
+
   const { data: adminSuggestions } = await supabase.from('user_suggestions').select('id,title,description,status,created_at,user_id').order('created_at',{ascending:false}).limit(20);
 
   const { data: users } = await supabase
@@ -3512,6 +3519,10 @@ async function adminPage() {
           </div>
         `).join('') : '<div class="empty">İlan bulunmuyor.</div>'}
       </div>
+      <div class="sectionHead adminSectionHead" id="adminReports"><div><small class="sectionLabel">GÜVENLİK</small><h2>Raporlar</h2></div></div>
+      <div class="panel adminFeedbackList">${reportResult.error ? '<div class="empty">Raporlar yüklenemedi. Erişim yetkilerini kontrol edin.</div>' : adminReports.length ? adminReports.map(x => '<div class="adminFeedbackRow"><div><b>Rapor</b><p>Durum: '+safe(x.status||'Belirtilmedi')+'</p><small>'+safe(dateText(x.created_at))+'</small></div></div>').join('') : '<div class="empty">Henüz rapor bulunmuyor.</div>'}</div>
+      <div class="sectionHead adminSectionHead" id="adminHistory"><div><small class="sectionLabel">YÖNETİM</small><h2>İşlem Geçmişi</h2></div></div>
+      <div class="panel adminFeedbackList">${auditResult.error ? '<div class="empty">İşlem geçmişi yüklenemedi. Erişim yetkilerini kontrol edin.</div>' : adminHistory.length ? adminHistory.map(x => '<div class="adminFeedbackRow"><div><b>'+safe(x.action||'Yönetim işlemi')+'</b><small>'+safe(dateText(x.created_at))+'</small></div></div>').join('') : '<div class="empty">Henüz kayıtlı yönetim işlemi bulunmuyor.</div>'}</div>
       </section>
     </section>
   `);
