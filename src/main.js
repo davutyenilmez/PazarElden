@@ -2560,10 +2560,11 @@ async function sellerPage(id) {
         (otherMember ? '<div class="memberProfileActions">'+
           (!isBlocked?'<a class="memberMessageCta" href="#/messages?user='+encodeURIComponent(seller.id)+'">💬 Mesaj Gönder</a>':'')+
           '<button onclick="peFollowMember(\''+seller.id+'\','+isFollowing+')">'+(isFollowing?'✓ Takibi Bırak':'➕ Takip Et')+'</button>'+
+          '<details class="memberMoreMenu"><summary>⋯ Diğer İşlemler</summary><div class="memberMorePanel">'+
           '<button onclick="peBlockMember(\''+seller.id+'\','+isBlocked+')">'+(isBlocked?'Engeli Kaldır':'🚫 Engelle')+'</button>'+
-          '<button onclick="peReportMember(\''+seller.id+'\')">⚑ Şikâyet Et</button></div>' : '') +
+          '<button onclick="peReportMember(\''+seller.id+'\')">⚑ Şikâyet Et</button></div></details></div>' : '') +
       '</div>' +
-      '<div class="memberTrustSummary"><span>📦 '+(listings?.length||0)+' aktif ilan</span><span>✅ '+(soldRes.count||0)+' satıldı işaretli ilan</span><span>👥 '+(followersRes.count||0)+' takipçi</span><span>⭐ '+(averageRating?safe(averageRating)+'/5':'Henüz puan yok')+'</span></div>' +
+      '<div class="memberTrustSummary" aria-label="Üye istatistikleri"><span><strong>👥 '+(followersRes.count||0)+'</strong><small>Takipçi</small></span><span><strong>📦 '+(listings?.length||0)+'</strong><small>Aktif ilan</small></span><span><strong>⭐ '+(averageRating?safe(averageRating)+'/5':'—')+'</strong><small>Satıcı puanı</small></span></div>' +
       '<div class="panel publicAbout"><h3>Hakkında</h3><p>' +
         safe(seller.about_me || 'Bu üye henüz kendini tanıtan bir açıklama eklememiş.') +
       '</p>' + (publicVisitCount !== null ? '<small>👥 ' + Number(publicVisitCount.member_visits || 0) + ' benzersiz üye ziyareti</small>' : '') +
