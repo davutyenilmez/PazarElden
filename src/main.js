@@ -274,7 +274,7 @@ function shell(content) {
 
   const accountNav = currentUser
     ? `<details class="peHeaderDropdown peAccountDropdown">
-        <summary aria-label="Hesap menüsü">👤 <span class="peAccountName">${safe(userName())}</span> <span class="peChevron">⌄</span></summary>
+        <summary aria-label="Hesabım menüsü">👤 <span class="peAccountName">Hesabım</span> <span class="peChevron">⌄</span></summary>
         <div class="peDropdownPanel">
           <div class="peDropdownHeading">${safe(userName())}</div>
           <div class="peAccountRank">${rankBadge()}${isPremium()?'<span class="premiumMini">💎 PREMIUM</span>':''}</div>
@@ -294,20 +294,7 @@ function shell(content) {
         Pazar<span>Elden</span>
       </a>
 
-      <div class="topsearch">
-
-        <input
-          id="q"
-          placeholder="Ürün, marka veya kategori ara..."
-        >
-
-        <button onclick="searchNow()">
-          Ara
-        </button>
-
-      </div>
-
-      <a class="cta peSearchPost" href="#/ilan-ver">+ İlan Ver</a>
+      <a class="peHeaderSearchIcon" href="#/" aria-label="Ana sayfada ürün ara" title="Ürün ara">⌕ <span>Ara</span></a>
 
       <nav>
         ${currentUser ? `
@@ -326,6 +313,7 @@ function shell(content) {
 
 
 
+        <a class="cta peHeaderPost" href="#/ilan-ver">＋ Ücretsiz İlan Ver</a>
       </nav>
 
     </header>
