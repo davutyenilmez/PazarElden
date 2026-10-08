@@ -328,11 +328,11 @@ function shell(content) {
       ${content}
     </main>
     <nav class="peMobileBottomNav" aria-label="Mobil gezinme">
-      <a href="#/">⌂<span>Ana Sayfa</span></a>
-      <a href="#/members">👥<span>Üyeler</span></a>
-      <a href="#/ilan-ver">＋<span>İlan Ver</span></a>
-      <a href="#/messages">✉<span>Mesajlar</span><span class="peUnreadBadge" id="mobileMessageBadge" hidden></span></a>
-      <a href="#/profile">♙<span>Profil</span></a>
+      <a href="#/" class="${(location.hash.replace(/^#/, '').split('?')[0] || '/') === '/' ? 'peMobileActive' : ''}" aria-label="Ana sayfa"><span class="peMobileNavIcon">⌂</span><span>Keşfet</span></a>
+      <a href="#/search?q=" class="${location.hash.startsWith('#/search') ? 'peMobileActive' : ''}" aria-label="İlan ara"><span class="peMobileNavIcon">⌕</span><span>Ara</span></a>
+      <a href="#/ilan-ver" class="peMobilePost ${location.hash.startsWith('#/ilan-ver') ? 'peMobileActive' : ''}" aria-label="Ücretsiz ilan ver"><span class="peMobileNavIcon">＋</span><span>İlan Ver</span></a>
+      <a href="${currentUser ? '#/messages' : '#/login'}" class="${location.hash.startsWith('#/messages') ? 'peMobileActive' : ''}" aria-label="Mesajlar"><span class="peMobileNavIcon">✉</span><span>Mesajlar</span><span class="peUnreadBadge" id="mobileMessageBadge" hidden></span></a>
+      <a href="${currentUser ? '#/profile' : '#/login'}" class="${location.hash.startsWith('#/profile') ? 'peMobileActive' : ''}" aria-label="${currentUser ? 'Profilim' : 'Giriş yap'}"><span class="peMobileNavIcon">♙</span><span>${currentUser ? 'Hesabım' : 'Giriş'}</span></a>
     </nav>
 
     <footer>
