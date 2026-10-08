@@ -1086,7 +1086,7 @@ async function listing(id) {
 
                 <p>
                   Yayından kaldırılan ilan tekrar moderasyona gönderilebilir.
-                  Yönetici silme işlemi ilanı veritabanından kalıcı olarak kaldırır.
+                  Kendi ilanınızı silebilirsiniz. Yönetici silme işlemi kalıcıdır.
                 </p>
 
               </div>
@@ -1260,74 +1260,33 @@ window.reportListing =
    İLAN YAYINDAN KALDIR / AKTİF ET
    ========================================================= */
 
-window.pauseListing =
-  async id => {
+window.pauseListing = async id => {
+  if (!currentUser || !confirm('Bu ilanı yayından kaldırmak istiyor musunuz?')) return;
+  const { error } = await supabase.rpc('manage_listing_lifecycle',{p_listing_id:id,p_action:'pause'});
+  if (error) { alert('İlan kaldırılamadı: '+error.message); return; }
+  alert('İlan yayından kaldırıldı.');
+  await render();
+};
 
-    if (!currentUser) return;
+window.resumeListing = async id => {
+  if (!currentUser || !confirm('İlanı yeniden incelemeye göndermek istiyor musunuz?')) return;
+  const { error } = await supabase.rpc('manage_listing_lifecycle',{p_listing_id:id,p_action:'resume'});
+  if (error) { alert('İlan gönderilemedi: '+error.message); return; }
+  alert('İlan yeniden onaya gönderildi.');
+  await render();
+};
 
-    await supabase
-      .from('listings')
-      .update({
-        status: 'inactive'
-      })
-      .eq('id', id)
-      .eq('user_id', currentUser.id);
-
-    await render();
-
-  };
-
-
-window.resumeListing =
-  async id => {
-
-    if (!currentUser) return;
-
-    await supabase
-      .from('listings')
-      .update({
-        status: 'pending',
-        moderation_status: 'pending',
-        submitted_at: new Date().toISOString()
-      })
-      .eq('id', id)
-      .eq('user_id', currentUser.id);
-
-    await render();
-
-  };
-
-
-window.deleteListing =
-  async id => {
-
-    if (!currentUser) return;
-
-    const allowed =
-      currentProfile?.is_admin === true ||
-      currentProfile?.role === 'admin';
-
-    if (!allowed) {
-      alert('Bu işlem yalnızca yönetici tarafından yapılabilir.');
-      return;
-    }
-
-    if (!confirm('Bu ilanı silmek istediğinize emin misiniz?')) return;
-
-    const { error } = await supabase.rpc('admin_hard_delete_listing', {
-      p_listing_id: id
-    });
-
-    if (error) {
-      alert('İlan kalıcı olarak silinemedi: ' + error.message);
-      return;
-    }
-
-    alert('İlan kalıcı olarak silindi.');
-    location.hash = '#/admin';
-
-  };
-
+window.deleteListing = async id => {
+  if (!currentUser) return;
+  const admin = currentProfile?.is_admin === true || currentProfile?.role === 'admin';
+  const message = admin ? 'İlan kalıcı olarak silinecek. Bu işlem geri alınamaz. Devam edilsin mi?' : 'İlanınız silinecek ve yayından kaldırılacak. Devam edilsin mi?';
+  if (!confirm(message)) return;
+  const { error } = await supabase.rpc('manage_listing_lifecycle',{p_listing_id:id,p_action:'delete'});
+  if (error) { alert('İlan silinemedi: '+error.message); return; }
+  alert(admin ? 'İlan kalıcı olarak silindi.' : 'İlanınız silindi.');
+  location.hash = admin ? '#/admin' : '#/my-listings';
+  await render();
+};
 
 /* =========================================================
    İLAN VERME
@@ -3547,7 +3506,7 @@ async function adminPage() {
           <p>${safe(x.description || '')}</p>
           <button onclick="approveListing('${x.id}')">✅ Onayla</button>
           <button onclick="rejectListing('${x.id}')">❌ Reddet</button>
-          <button class="dangerBtn" onclick="deleteListing('${x.id}')">🗑️ Kalıcı Sil</button>
+          <button onclick="pauseListing('${x.id}')">⏸️ Kaldır</button><button onclick="resumeListing('${x.id}')">▶️ Yeniden Gönder</button> <button class="dangerBtn" onclick="deleteListing('${x.id}')">🗑️ Kalıcı Sil</button>
         </div>
       `).join('') : '<div class="empty">Bekleyen ilan bulunmuyor.</div>'}
 
@@ -3560,7 +3519,7 @@ async function adminPage() {
             <div><b>${safe(x.title)}</b><small>${safe(x.status)} • ${money(x.price)} • ${safe(x.city || '')}</small></div>
             <div class="adminListingActions">
               <a href="#/listing/${x.id}">Görüntüle</a>
-              <button class="dangerBtn" onclick="deleteListing('${x.id}')">🗑️ Kalıcı Sil</button>
+              <button onclick="pauseListing('${x.id}')">⏸️ Kaldır</button><button onclick="resumeListing('${x.id}')">▶️ Yeniden Gönder</button> <button class="dangerBtn" onclick="deleteListing('${x.id}')">🗑️ Kalıcı Sil</button>
             </div>
           </div>
         `).join('') : '<div class="empty">İlan bulunmuyor.</div>'}
