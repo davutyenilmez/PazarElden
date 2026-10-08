@@ -322,6 +322,7 @@ function shell(content) {
 
       <nav>
         ${currentUser ? `
+          <a href="#/members">👥 Üyeler</a>
           <a href="#/favorites">♡ Favorilerim</a>
           <a href="#/following">🔔 Takiplerim</a>
           <a href="#/messages">💬 Mesajlar <span id="messageBadge"></span></a>
@@ -350,7 +351,7 @@ function shell(content) {
     </main>
     <nav class="peMobileBottomNav" aria-label="Mobil gezinme">
       <a href="#/">⌂<span>Ana Sayfa</span></a>
-      <a href="#/categories">▦<span>Kategoriler</span></a>
+      <a href="#/members">👥<span>Üyeler</span></a>
       <a href="#/ilan-ver">＋<span>İlan Ver</span></a>
       <a href="#/messages">✉<span>Mesajlar</span></a>
       <a href="#/profile">♙<span>Profil</span></a>
@@ -2276,6 +2277,7 @@ async function profilePage() {
         <a href="#/messages">💬 <span>Mesajlarım</span></a>
         <a href="#/favorites">♡ <span>Favorilerim</span></a>
         <a href="#/following">♧ <span>Takiplerim</span></a>
+        <a href="#/members">👥 <span>Üyeleri Keşfet</span></a>
         <a href="#/rewards" onclick="openProfileSection(event, 'rewardCenter')">🎁 <span>Ödül Merkezi</span></a>
         <a href="#/premium">💎 <span>Premium Üyelik</span></a>
         <button onclick="toggleProfileEditor()">⚙ <span>Hesap Ayarları</span></button>
@@ -2389,6 +2391,25 @@ window.savePublicProfile = async () => {
 
   alert('Profiliniz güncellendi.');
   await render();
+};
+
+async function membersPage() {
+  if (!currentUser) return shell('<section class="panel"><h1>Üyeleri Keşfet</h1><p>Üye profillerini görmek için giriş yapın.</p><a href="#/login">Giriş Yap</a></section>');
+  const params = new URLSearchParams(location.hash.split('?')[1] || '');
+  const query = (params.get('q') || '').trim().slice(0,80);
+  const city = (params.get('city') || '').trim().slice(0,80);
+  let request = supabase.from('profiles').select('id,full_name,avatar_url,city,district,about_me,created_at').order('created_at',{ascending:false}).limit(60);
+  if (query) request = request.ilike('full_name','%' + query.replace(/[%,()]/g,'') + '%');
+  if (city) request = request.ilike('city','%' + city.replace(/[%,()]/g,'') + '%');
+  const {data, error} = await request;
+  const users = (data || []).filter(u=>u.id !== currentUser.id);
+  return shell(`<section class="membersDiscover"><div class="panel membersIntro"><h1>👥 Üyeleri Keşfet</h1><p>Diğer üyelerin herkese açık profillerini ve ilanlarını inceleyin. E-posta ve telefon bilgileri gösterilmez.</p><form class="membersFilters" onsubmit="searchMembers(event)"><input id="memberSearchName" maxlength="80" placeholder="Üye adı" value="${safe(query)}" aria-label="Üye adı"><input id="memberSearchCity" maxlength="80" placeholder="Şehir" value="${safe(city)}" aria-label="Şehir"><button type="submit">🔎 Üye Ara</button><a href="#/members">Temizle</a></form></div><div class="membersGrid">${error?'<div class="panel">Üyeler şu anda yüklenemiyor. Profil erişim izinlerini kontrol edin.</div>':users.length?users.map(u=>`<article class="panel memberDiscoverCard"><div class="memberDiscoverAvatar">${u.avatar_url?'<img src="'+safe(u.avatar_url)+'" alt="Profil fotoğrafı" loading="lazy" onerror="this.style.display=\'none\'">':'👤'}</div><div><h3>${safe(u.full_name||'PazarElden Üyesi')}</h3><p>📍 ${safe(u.city||'Konum belirtilmemiş')}${u.district?' / '+safe(u.district):''}</p><p class="memberDiscoverAbout">${safe(u.about_me||'Bu üye henüz kendini tanıtmadı.')}</p><a class="memberDiscoverButton" href="#/seller/${encodeURIComponent(u.id)}">Profili ve İlanları Gör →</a></div></article>`).join(''):'<div class="panel">Aramanıza uygun başka üye bulunamadı.</div>'}</div><p class="membersNote">En fazla 60 üye gösterilir. Özel hesap bilgileri bu sayfada paylaşılmaz.</p></section>`);
+}
+window.searchMembers = event => {
+  event.preventDefault();
+  const q = document.getElementById('memberSearchName')?.value.trim() || '';
+  const city = document.getElementById('memberSearchCity')?.value.trim() || '';
+  location.hash = '#/members?' + new URLSearchParams({q,city}).toString();
 };
 
 async function sellerPage(id) {
@@ -3652,6 +3673,9 @@ async function render() {
     html =
       await searchPage();
 
+
+  } else if (path === '/members' || path.startsWith('/members?')) {
+    html = await membersPage();
 
   } else if (
     path === '/categories'
