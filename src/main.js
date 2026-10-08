@@ -1218,7 +1218,7 @@ window.reportListing =
 
     if (!reason?.trim()) return;
 
-    await safeTable(
+    const reportResult = await safeTable(
       'reports',
       () =>
         supabase
@@ -1233,9 +1233,11 @@ window.reportListing =
           })
     );
 
-    alert(
-      'Şikâyetiniz yönetime iletildi.'
-    );
+    if (!reportResult || reportResult.error) {
+      alert('Şikâyet gönderilemedi. Lütfen tekrar deneyin.');
+      return;
+    }
+    alert('Şikâyetiniz yönetime iletildi.');
 
   };
 
@@ -1739,6 +1741,17 @@ window.publishListing =
       return;
     }
 
+
+    // Dosya türü ve boyutu kullanıcı tarafında da kontrol edilir.
+    // Gerçek güvenlik için Storage bucket kuralları ayrıca uygulanmalıdır.
+    const allowedPhotoTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    const invalidPhoto = [...(photos || [])].find(file =>
+      !allowedPhotoTypes.has(file.type) || file.size > 8 * 1024 * 1024
+    );
+    if (invalidPhoto) {
+      msg.textContent = 'Fotoğraflar JPG, PNG veya WebP olmalı ve her biri en fazla 8 MB olmalıdır.';
+      return;
+    }
 
     const fullText =
       `${title} ${description}`;
@@ -2341,7 +2354,7 @@ window.savePublicProfile = async () => {
 async function sellerPage(id) {
   const { data: seller } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, full_name, avatar_url, is_admin, premium_until, created_at, city, district, about_me')
     .eq('id', id)
     .maybeSingle();
 
@@ -3318,8 +3331,13 @@ async function adminPage() {
     const allUsers = users || [];
   const now = Date.now();
   const startToday = new Date(); startToday.setHours(0,0,0,0);
-  const todayCount = allUsers.filter(u => new Date(u.created_at).getTime() >= startToday.getTime()).length;
-  const weekCount = allUsers.filter(u => new Date(u.created_at).getTime() >= now - 7*24*60*60*1000).length;
+  const [{ count: todayTotal }, { count: weekTotal }, { count: memberTotal }] = await Promise.all([
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', startToday.toISOString()),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', new Date(now - 7*24*60*60*1000).toISOString()),
+    supabase.from('profiles').select('id', { count: 'exact', head: true })
+  ]);
+  const todayCount = todayTotal ?? 0;
+  const weekCount = weekTotal ?? 0;
   const newUsers = allUsers.slice(0, 12);
   const lastSeenMemberAt = localStorage.getItem('adminLastSeenMemberAt');
   const unseenUsers = lastSeenMemberAt
@@ -3357,7 +3375,7 @@ async function adminPage() {
       </div>
 
             <div class="adminGrid memberStats">
-        <div class="adminStat">👥<b>${allUsers.length}</b><span>Toplam Üye</span></div>
+        <div class="adminStat">👥<b>${memberTotal ?? 0}</b><span>Toplam Üye</span></div>
         <div class="adminStat">🆕<b>${todayCount}</b><span>Bugün Katılan</span></div>
         <div class="adminStat">📅<b>${weekCount}</b><span>Son 7 Gün</span></div>
         <div class="adminStat">📢<b>${pending?.length || 0}</b><span>Bekleyen İlan</span></div>
